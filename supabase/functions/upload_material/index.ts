@@ -2,64 +2,92 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3"
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+}
+
+function getMimeType(extension: string): string {
+  const ext = extension.toLowerCase()
+
+  if (ext === "jpg" || ext === "jpeg") return "image/jpeg"
+  if (ext === "png") return "image/png"
+  if (ext === "pdf") return "application/pdf"
+  return "text/plain"
+}
+
+function createSupabaseClient(req: Request) {
+  const authHeader = req.headers.get("Authorization")
+
+  return createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_ANON_KEY")!,
+    {
+      global: {
+        headers: authHeader ? { Authorization: authHeader } : {},
+      },
+    }
+  )
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders })
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+    const supabase = createSupabaseClient(req)
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader! } },
-    });
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      throw new Error("Unauthorized user")
+    }
 
-    const formData = await req.formData();
-    const file = formData.get('file') as File;
-    const folderName = formData.get('folderName') as string;
-    const fileName = formData.get('fileName') as string;
-    const fileType = formData.get('fileType') as string;
-    const extractedText = formData.get('extractedText') as string;
+    const formData = await req.formData()
 
-    const filePath = `${folderName}/${fileName}`;
-    const arrayBuffer = await file.arrayBuffer();
+    const file = formData.get("file") as File
+    const folderName = formData.get("folderName") as string
+    const fileName = formData.get("fileName") as string
+    const fileType = formData.get("fileType") as string
+    const extractedText = formData.get("extractedText") as string
+
+    if (!file) throw new Error("Missing file")
+
+    const filePath = `${folderName}/${fileName}`
+    const arrayBuffer = await file.arrayBuffer()
 
     const { error: uploadError } = await supabase.storage
-      .from('materials')
+      .from("StudyMaterials")
       .upload(filePath, arrayBuffer, {
-        contentType: file.type || 'application/octet-stream',
-        upsert: true
-      });
+        contentType: getMimeType(fileType),
+        upsert: true,
+      })
 
-    if (uploadError) throw uploadError;
+    if (uploadError) throw uploadError
 
     const { data, error: dbError } = await supabase
-      .from('material')
+      .from("study_materials")
       .insert({
-        folder_name: folderName,
-        file_name: fileName,
         file_type: fileType,
-        extracted_text: extractedText,
-        storage_path: filePath,
+        raw_text: extractedText,
+        file_path: filePath,
+        student_id: user.id,
       })
-      .select();
+      .select()
 
-    if (dbError) throw dbError;
+    if (dbError) throw dbError
 
     return new Response(JSON.stringify(data), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
-    });
+    })
+
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 400,
-    });
+    return new Response(
+      JSON.stringify({ error: err.message }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      }
+    )
   }
 })

@@ -21,7 +21,7 @@ class MaterialProcessorService {
       folderName: folderName,
       fileName: fileName,
       fileType: fileType,
-      extractedText: response['extractedText'],
+      extractedText: response?['extractedText'],
       fileBytes: fileBytes as dynamic,
     );
   }
