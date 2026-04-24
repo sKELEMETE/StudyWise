@@ -3,10 +3,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:go_router/go_router.dart';
 import '../../datasource/study_material/storage_service.dart';
-import '../../repo/study_material/extraction_service.dart';
+import '../../repo/study_material/process_material_service.dart';
 
 final storageService = StorageService();
-final extractionService = ExtractionService();
+final processorService = MaterialProcessorService();
 
 class SourceScreen extends StatefulWidget {
   final String folderName;
@@ -35,13 +35,12 @@ class _SourceScreenState extends State<SourceScreen> {
     });
 
     try {
-      final response = await extractionService.processMaterial(
+      await processorService.processAndUpload(
         folderName: widget.folderName,
         fileName: file.name,
+        fileType: file.extension ?? 'unknown',
         fileBytes: file.bytes!,
       );
-      
-      debugPrint('Extraction Response: $response');
       
       if (mounted) {
         setState(() {
