@@ -25,6 +25,9 @@ function createSupabaseClient(req: Request) {
       global: {
         headers: authHeader ? { Authorization: authHeader } : {},
       },
+      auth: {
+        persistSession: false,
+      }
     }
   )
 }
@@ -37,13 +40,16 @@ serve(async (req) => {
   try {
     const supabase = createSupabaseClient(req)
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const authHeader = req.headers.get("Authorization")
+    const token = authHeader ? authHeader.replace("Bearer ", "") : ""
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+
     if (authError || !user) {
       throw new Error("Unauthorized user")
     }
 
     const formData = await req.formData()
-
     const file = formData.get("file") as File
     const folderName = formData.get("folderName") as string
     const fileName = formData.get("fileName") as string
@@ -52,7 +58,7 @@ serve(async (req) => {
 
     if (!file) throw new Error("Missing file")
 
-    const filePath = `${folderName}/${fileName}`
+    const filePath = `${user.id}/${folderName}/${fileName}`
     const arrayBuffer = await file.arrayBuffer()
 
     const { error: uploadError } = await supabase.storage

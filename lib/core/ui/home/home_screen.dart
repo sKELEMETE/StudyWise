@@ -3,10 +3,10 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../datasource/study_material/storage_service.dart';
-import '../../repo/study_material/extraction_service.dart';
+import '../../repo/study_material/process_material_service.dart';
 
 final storageService = StorageService();
-final extractionService = ExtractionService();
+final processorService = MaterialProcessorService();
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -42,16 +42,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton(
-                    onPressed: _isCreating ? null : () async {
-                      final result = await FilePicker.pickFiles(
-                        withData: true, 
-                      );
-                      if (result != null && result.files.isNotEmpty) {
-                        setStateDialog(() {
-                          _selectedFile = result.files.first;
-                        });
-                      }
-                    },
+                    onPressed: _isCreating
+                        ? null
+                        : () async {
+                            final result = await FilePicker.pickFiles(
+                              withData: true,
+                            );
+
+                            if (result != null && result.files.isNotEmpty) {
+                              setStateDialog(() {
+                                _selectedFile = result.files.first;
+                              });
+                            }
+                          },
                     child: const Text('Pick a File'),
                   ),
                   if (_selectedFile != null) ...[
@@ -70,47 +73,57 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: const Text('Cancel'),
                 ),
                 TextButton(
-                  onPressed: _isCreating ? null : () async {
-                    final folderName = _folderController.text.trim();
-                    if (folderName.isEmpty || _selectedFile == null || _selectedFile!.bytes == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Enter a folder name and pick a file')),
-                      );
-                      return;
-                    }
+                  onPressed: _isCreating
+                      ? null
+                      : () async {
+                          final folderName = _folderController.text.trim();
 
-                    setStateDialog(() {
-                      _isCreating = true;
-                    });
+                          if (folderName.isEmpty ||
+                              _selectedFile == null ||
+                              _selectedFile!.bytes == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Enter topic name and pick file'),
+                              ),
+                            );
+                            return;
+                          }
 
-                    try {
-                      final response = await extractionService.processMaterial(
-                        folderName: folderName,
-                        fileName: _selectedFile!.name,
-                        fileBytes: _selectedFile!.bytes!,
-                      );
-                      
-                      debugPrint('Extraction Response: $response');
+                          setStateDialog(() {
+                            _isCreating = true;
+                          });
 
-                      if (context.mounted) {
-                        Navigator.pop(context);
-                        setState(() {}); 
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Topic created and file processed')),
-                        );
-                      }
-                    } catch (e) {
-                      debugPrint('Create folder error: $e');
-                      if (context.mounted) {
-                        setStateDialog(() {
-                          _isCreating = false;
-                        });
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Failed: $e')),
-                        );
-                      }
-                    }
-                  },
+                          try {
+                            await processorService.processAndUpload(
+                              folderName: folderName,
+                              fileName: _selectedFile!.name,
+                              fileType: _selectedFile!.extension ?? 'unknown',
+                              fileBytes: _selectedFile!.bytes!,
+                            );
+
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              setState(() {});
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Topic created and file processed'),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            debugPrint('Create error: $e');
+
+                            if (context.mounted) {
+                              setStateDialog(() {
+                                _isCreating = false;
+                              });
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Failed: $e')),
+                              );
+                            }
+                          }
+                        },
                   child: const Text('Create'),
                 ),
               ],
