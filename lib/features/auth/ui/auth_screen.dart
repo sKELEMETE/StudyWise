@@ -67,9 +67,17 @@ class _AuthScreenState extends State<AuthScreen> {
                       child: const Text('Sign Up'),
                     ),
                     ElevatedButton(
-                      onPressed: () => context.read<AuthBloc>().add(
-                        AuthSignInRequested(_emailController.text.trim(), _passwordController.text.trim()),
-                      ),
+                      onPressed: () {
+                        _emailController.text = "testing@gmail.com";
+                        _passwordController.text = "testing";
+
+                        context.read<AuthBloc>().add(
+                          AuthSignInRequested(
+                            _emailController.text.trim(),
+                            _passwordController.text.trim(),
+                          ),
+                        );
+                      },
                       child: const Text('Sign In'),
                     ),
                   ],

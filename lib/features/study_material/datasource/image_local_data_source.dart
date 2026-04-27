@@ -5,15 +5,15 @@ import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart
 import 'package:image/image.dart' as img;
 
 class ImageLocalDataSource {
-  final TextRecognizer _textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
-
   Future<String> extractText(String fileName, Uint8List fileBytes) async {
     if (!_isValidImageBytes(fileBytes)) throw Exception('Invalid image bytes');
+    
+    final textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
     
     try {
       final resizedBytes = await compute(_resizeImage, fileBytes);
       final inputImage = await _buildInputImage(resizedBytes);
-      final recognizedText = await _textRecognizer.processImage(inputImage);
+      final recognizedText = await textRecognizer.processImage(inputImage);
       
       try {
         final file = File(inputImage.filePath!);
@@ -23,6 +23,8 @@ class ImageLocalDataSource {
       return recognizedText.text;
     } catch (e) {
       throw Exception('ML Kit error: $e');
+    } finally {
+      textRecognizer.close();
     }
   }
 
@@ -41,6 +43,4 @@ class ImageLocalDataSource {
     await file.writeAsBytes(bytes);
     return InputImage.fromFilePath(file.path);
   }
-
-  void dispose() => _textRecognizer.close();
 }
