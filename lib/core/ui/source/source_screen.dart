@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:go_router/go_router.dart';
 import '../../datasource/study_material/storage_service.dart';
-import '../../repo/study_material/process_material_service.dart';
+import '../../usecase/study_material/img_handler.dart';
 
 final storageService = StorageService();
 final processorService = MaterialProcessorService();
@@ -22,7 +22,11 @@ class _SourceScreenState extends State<SourceScreen> {
   bool _isUploading = false;
 
   Future<void> _uploadFile() async {
-    final result = await FilePicker.pickFiles(withData: true);
+    final result = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['jpg', 'png', 'jpeg', 'pdf'],
+      withData: true,
+    );
     
     if (result == null || result.files.isEmpty) return;
 

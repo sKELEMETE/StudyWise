@@ -8,31 +8,39 @@ class ExtractionService {
   final TextRecognizer _textRecognizer =
       TextRecognizer(script: TextRecognitionScript.latin);
 
-  bool _isProcessing = false;
-
   Future<Map<String, dynamic>?> processMaterial({
     required String folderName,
     required String fileName,
     required Uint8List fileBytes,
   }) async {
-    if (_isProcessing) return null;
+    final startTime = DateTime.now();
 
-    if (!_isValidImageExtension(fileName) ||
-        !_isValidImageBytes(fileBytes)) {
-      print('=== INVALID FILE TYPE ===');
+    if (!_isValidImageBytes(fileBytes)) {
+      print('❌ Invalid image bytes');
       return null;
     }
 
-    _isProcessing = true;
-
     try {
+      print('\n=== 🧠 ML KIT START ===');
+      print('📄 File: $fileName');
+      print('📊 Original size: ${fileBytes.length}');
+
       final resizedBytes = await compute(_resizeImage, fileBytes);
+      print('📉 Resized size: ${resizedBytes.length}');
+
       final inputImage = await _buildInputImage(resizedBytes);
+
       final recognizedText =
           await _textRecognizer.processImage(inputImage);
 
-      print('=== EXTRACTION SUCCESS ===');
-      print(recognizedText.text);
+      print('📝 Text length: ${recognizedText.text.length}');
+      print('📦 Blocks: ${recognizedText.blocks.length}');
+
+      // 🧹 cleanup temp file
+      try {
+        final file = File(inputImage.filePath!);
+        if (await file.exists()) await file.delete();
+      } catch (_) {}
 
       return {
         'fileName': fileName,
@@ -40,43 +48,37 @@ class ExtractionService {
         'extractedText': recognizedText.text,
       };
     } catch (e) {
-      print('=== EXTRACTION FAILED ===');
-      print(e);
+      print('❌ ML Kit error: $e');
       return null;
     } finally {
-      _isProcessing = false;
+      print(
+          '⏱️ Took: ${DateTime.now().difference(startTime).inMilliseconds} ms');
     }
   }
 
-  bool _isValidImageExtension(String fileName) {
-    final lower = fileName.toLowerCase();
-    return lower.endsWith('.jpg') ||
-        lower.endsWith('.jpeg') ||
-        lower.endsWith('.png');
-  }
-
   bool _isValidImageBytes(Uint8List bytes) {
-    final image = img.decodeImage(bytes);
-    return image != null;
+    return img.decodeImage(bytes) != null;
   }
 
   static Uint8List _resizeImage(Uint8List bytes) {
     final image = img.decodeImage(bytes);
     if (image == null) return bytes;
 
-    final resized = img.copyResize(image, width: 800);
+    final resized = img.copyResize(image, width: 1200);
 
     return Uint8List.fromList(
-      img.encodeJpg(resized, quality: 70),
+      img.encodeJpg(resized, quality: 80),
     );
   }
 
   Future<InputImage> _buildInputImage(Uint8List bytes) async {
     final tempDir = await getTemporaryDirectory();
-    final tempFile = File('${tempDir.path}/temp_mlkit_image.jpg');
-    await tempFile.writeAsBytes(bytes);
+    final file = File(
+        '${tempDir.path}/mlkit_${DateTime.now().millisecondsSinceEpoch}.jpg');
 
-    return InputImage.fromFilePath(tempFile.path);
+    await file.writeAsBytes(bytes);
+
+    return InputImage.fromFilePath(file.path);
   }
 
   void dispose() {

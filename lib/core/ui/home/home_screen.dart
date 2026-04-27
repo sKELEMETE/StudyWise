@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../datasource/study_material/storage_service.dart';
-import '../../repo/study_material/process_material_service.dart';
+import '../../usecase/study_material/img_handler.dart';
 
 final storageService = StorageService();
 final processorService = MaterialProcessorService();
