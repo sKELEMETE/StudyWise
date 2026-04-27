@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../bloc/auth/auth.dart';
+import '../bloc/auth_bloc.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -23,9 +23,7 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('StudyWise'),
-      ),
+      appBar: AppBar(title: const Text('StudyWise')),
       body: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is AuthFailure) {
@@ -46,59 +44,34 @@ class _AuthScreenState extends State<AuthScreen> {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  const Text(
-                    'StudyWise',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  const Text('StudyWise', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 20),
                   TextField(
                     controller: _emailController,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      border: OutlineInputBorder(),
-                    ),
+                    decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder()),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: _passwordController,
                     obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Password',
-                      border: OutlineInputBorder(),
-                    ),
+                    decoration: const InputDecoration(labelText: 'Password', border: OutlineInputBorder()),
                   ),
                   const SizedBox(height: 20),
                   
-                  if (isLoading)
-                    const CircularProgressIndicator()
+                  if (isLoading) const CircularProgressIndicator()
                   else ...[
                     ElevatedButton(
                       onPressed: () => context.read<AuthBloc>().add(
-                        AuthSignUpRequested(
-                          _emailController.text.trim(),
-                          _passwordController.text.trim(),
-                        ),
+                        AuthSignUpRequested(_emailController.text.trim(), _passwordController.text.trim()),
                       ),
                       child: const Text('Sign Up'),
                     ),
                     ElevatedButton(
-                      onPressed: () {
-                        _emailController.text = "testing@gmail.com";
-                        _passwordController.text = "testing";
-
-                        context.read<AuthBloc>().add(
-                          AuthSignInRequested(
-                            _emailController.text.trim(),
-                            _passwordController.text.trim(),
-                          ),
-                        );
-                      },
+                      onPressed: () => context.read<AuthBloc>().add(
+                        AuthSignInRequested(_emailController.text.trim(), _passwordController.text.trim()),
+                      ),
                       child: const Text('Sign In'),
                     ),
-                    
                   ],
                 ],
               ),

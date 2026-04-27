@@ -1,4 +1,4 @@
-import '../../datasource/auth/auth.dart';
+import '../datasource/auth_remote_data_source.dart';
 
 abstract class AuthRepository {
   Future<void> signUp({required String email, required String password});

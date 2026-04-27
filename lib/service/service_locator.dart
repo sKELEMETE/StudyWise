@@ -1,23 +1,51 @@
 import 'package:get_it/get_it.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import  '../core/datasource/auth/auth.dart';
-import  '../core/repo/auth/auth.dart';
-import  '../core/bloc/auth/auth.dart';
 
+import '../features/auth/datasource/auth_remote_data_source.dart';
+import '../features/auth/repo/auth_repository.dart';
+import '../features/auth/usecase/sign_in_usecase.dart';
+import '../features/auth/usecase/sign_up_usecase.dart';
+import '../features/auth/bloc/auth_bloc.dart';
+
+import '../features/study_material/datasource/storage_remote_data_source.dart';
+import '../features/study_material/datasource/upload_remote_data_source.dart';
+import '../features/study_material/datasource/image_local_data_source.dart';
+import '../features/study_material/datasource/pdf_local_data_source.dart';
+import '../features/study_material/repo/study_material_repository.dart';
+import '../features/study_material/repo/extraction_repository.dart';
+import '../features/study_material/usecase/get_topics_usecase.dart';
+import '../features/study_material/usecase/get_topic_files_usecase.dart';
+import '../features/study_material/usecase/process_and_upload_material_usecase.dart';
+import '../features/study_material/bloc/topic_bloc.dart';
+import '../features/study_material/bloc/source_bloc.dart';
 
 final sl = GetIt.instance;
 
 void initDependencies() {
-  // Datasource
-  sl.registerLazySingleton<AuthRemoteDataSource>(
-    () => AuthRemoteDataSourceImpl(Supabase.instance.client),
-  );
+  // === AUTHENTICATION ===
+  sl.registerLazySingleton<AuthRemoteDataSource>(() => AuthRemoteDataSourceImpl(Supabase.instance.client));
+  sl.registerLazySingleton<AuthRepository>(() => AuthRepositoryImpl(sl()));
+  sl.registerLazySingleton(() => SignInUseCase(sl()));
+  sl.registerLazySingleton(() => SignUpUseCase(sl()));
+  sl.registerFactory(() => AuthBloc(signInUseCase: sl(), signUpUseCase: sl()));
 
-  // Repository
-  sl.registerLazySingleton<AuthRepository>(
-    () => AuthRepositoryImpl(sl()),
-  );
+  // === STUDY MATERIALS ===
+  // DataSources
+  sl.registerLazySingleton(() => StorageRemoteDataSource());
+  sl.registerLazySingleton(() => UploadRemoteDataSource());
+  sl.registerLazySingleton(() => ImageLocalDataSource());
+  sl.registerLazySingleton(() => PdfLocalDataSource());
 
-  // BLoC
-  sl.registerFactory(() => AuthBloc(sl()));
+  // Repositories
+  sl.registerLazySingleton(() => StudyMaterialRepository(sl(), sl()));
+  sl.registerLazySingleton(() => ExtractionRepository(sl(), sl()));
+
+  // UseCases
+  sl.registerLazySingleton(() => GetTopicsUseCase(sl()));
+  sl.registerLazySingleton(() => GetTopicFilesUseCase(sl()));
+  sl.registerLazySingleton(() => ProcessAndUploadMaterialUseCase(sl(), sl()));
+
+  // Blocs
+  sl.registerFactory(() => TopicBloc(getTopicsUseCase: sl(), processUseCase: sl()));
+  sl.registerFactory(() => SourceBloc(getTopicFilesUseCase: sl(), processUseCase: sl()));
 }
