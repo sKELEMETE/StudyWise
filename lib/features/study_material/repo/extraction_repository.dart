@@ -1,6 +1,6 @@
 import 'dart:typed_data';
-import '../datasource/image_local_data_source.dart';
-import '../datasource/pdf_local_data_source.dart';
+import '../datasource/image_local_text_extraction_data_source.dart';
+import '../datasource/pdf_local_extraction_data_source.dart';
 
 class ExtractionRepository {
   final ImageLocalDataSource imageDataSource;

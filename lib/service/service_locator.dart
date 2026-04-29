@@ -9,8 +9,8 @@ import '../features/auth/bloc/auth_bloc.dart';
 
 import '../features/study_material/datasource/storage_remote_data_source.dart';
 import '../features/study_material/datasource/upload_remote_data_source.dart';
-import '../features/study_material/datasource/image_local_data_source.dart';
-import '../features/study_material/datasource/pdf_local_data_source.dart';
+import '../features/study_material/datasource/image_local_text_extraction_data_source.dart';
+import '../features/study_material/datasource/pdf_local_extraction_data_source.dart';
 import '../features/study_material/repo/study_material_repository.dart';
 import '../features/study_material/repo/extraction_repository.dart';
 import '../features/study_material/usecase/get_topics_usecase.dart';

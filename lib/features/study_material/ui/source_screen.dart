@@ -71,6 +71,7 @@ class _SourceScreenState extends State<SourceScreen> {
           onPressed: () => context.pop(),
         ),
       ),
+
       body: BlocConsumer<SourceBloc, SourceState>(
         listener: (context, state) {
           if (state is SourceActionSuccess) {
@@ -101,6 +102,7 @@ class _SourceScreenState extends State<SourceScreen> {
                   label: Text(isLoading ? 'Uploading...' : 'Add File'),
                 ),
               ),
+
               Expanded(
                 child: Builder(
                   builder: (context) {
@@ -109,13 +111,16 @@ class _SourceScreenState extends State<SourceScreen> {
                         child: CircularProgressIndicator(),
                       );
                     }
+
                     if (state is SourceLoaded) {
                       if (state.files.isEmpty) {
                         return const Center(
                           child: Text('No files found in this topic'),
                         );
                       }
+
                       return ListView.builder(
+                        padding: const EdgeInsets.only(bottom: 80),
                         itemCount: state.files.length,
                         itemBuilder: (context, index) {
                           return ListTile(
@@ -125,6 +130,7 @@ class _SourceScreenState extends State<SourceScreen> {
                         },
                       );
                     }
+
                     return const SizedBox.shrink();
                   },
                 ),

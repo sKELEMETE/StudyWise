@@ -139,6 +139,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 onPressed: () => _showCreateFolderDialog(context, user!.id),
                 child: const Text('Create New Topic'),
               ),
+              ElevatedButton(
+                onPressed: () => context.push('/ai'),
+                child: const Text('Chat AI'),
+              ),
               Expanded(
                 child: Builder(builder: (context) {
                   if (state is TopicLoading) return const Center(child: CircularProgressIndicator());
