@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:studywise/features/ai/ui/generate_button_ui.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:go_router/go_router.dart';
@@ -94,6 +95,7 @@ class _SourceScreenState extends State<SourceScreen> {
 
           return Column(
             children: [
+              // Upload button
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: ElevatedButton.icon(
@@ -103,6 +105,7 @@ class _SourceScreenState extends State<SourceScreen> {
                 ),
               ),
 
+              // File list
               Expanded(
                 child: Builder(
                   builder: (context) {
@@ -120,7 +123,7 @@ class _SourceScreenState extends State<SourceScreen> {
                       }
 
                       return ListView.builder(
-                        padding: const EdgeInsets.only(bottom: 80),
+                        padding: const EdgeInsets.only(bottom: 16),
                         itemCount: state.files.length,
                         itemBuilder: (context, index) {
                           return ListTile(
@@ -133,6 +136,14 @@ class _SourceScreenState extends State<SourceScreen> {
 
                     return const SizedBox.shrink();
                   },
+                ),
+              ),
+
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: SummarizeButton(
+                  userId: user!.id,
+                  folderName: widget.folderName,
                 ),
               ),
             ],

@@ -1,4 +1,5 @@
 import 'package:get_it/get_it.dart';
+import 'package:studywise/features/ai/repo/ai_and_raw_text_repo.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../features/auth/datasource/auth_remote_data_source.dart';
@@ -18,6 +19,9 @@ import '../features/study_material/usecase/get_topic_files_usecase.dart';
 import '../features/study_material/usecase/process_and_upload_material_usecase.dart';
 import '../features/study_material/bloc/topic_bloc.dart';
 import '../features/study_material/bloc/source_bloc.dart';
+
+import '../features/ai/usecase/ai_usecase.dart';
+import '../features/ai/bloc/groq_bloc.dart';
 
 final sl = GetIt.instance;
 
@@ -48,4 +52,27 @@ void initDependencies() {
   // Blocs
   sl.registerFactory(() => TopicBloc(getTopicsUseCase: sl(), processUseCase: sl()));
   sl.registerFactory(() => SourceBloc(getTopicFilesUseCase: sl(), processUseCase: sl()));
+
+  // === GROQ ===
+  //DataSource
+
+  //Repo
+  sl.registerLazySingleton<AiTextRepo>(
+  () => AiTextRepo(
+    remoteDataSource: sl(),
+    groqDataSource: sl(),
+  ),
+);
+
+  //UseCases
+  sl.registerLazySingleton(
+  () => SummarizeStudyMaterialsUseCase(sl()),
+);
+
+  //Bloc
+  sl.registerFactory(
+  () => AiBloc(
+    summarizeUseCase: sl(),
+  ),
+);
 }

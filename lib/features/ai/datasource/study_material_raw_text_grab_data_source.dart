@@ -1,6 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-class StudyMaterialRemoteDataSource {
+class GrabRawText {
   final supabase = Supabase.instance.client;
 
   Future<List<String>> getRawTexts({
