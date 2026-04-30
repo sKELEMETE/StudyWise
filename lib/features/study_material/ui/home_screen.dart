@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:studywise/router/app_session.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:file_picker/file_picker.dart';
 import '../bloc/topic_bloc.dart';
@@ -139,10 +140,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 onPressed: () => _showCreateFolderDialog(context, user!.id),
                 child: const Text('Create New Topic'),
               ),
-              ElevatedButton(
-                onPressed: () => context.push('/ai'),
-                child: const Text('Chat AI'),
-              ),
               Expanded(
                 child: Builder(builder: (context) {
                   if (state is TopicLoading) return const Center(child: CircularProgressIndicator());
@@ -157,8 +154,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         return ListTile(
                           leading: const Icon(Icons.folder),
                           title: Text(folder.name),
-                          onTap: () => context.push('/source/${folder.name}'),
-                        );
+onTap: () {
+  AppSession.folderName = folder.name;
+  AppSession.userId = user!.id;
+
+  context.go('/summary');
+}                 );
                       },
                     );
                   }

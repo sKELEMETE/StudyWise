@@ -6,7 +6,7 @@ import 'service/service_locator.dart';
 
 import 'features/study_material/bloc/topic_bloc.dart';
 import 'features/study_material/bloc/source_bloc.dart';
-import 'package:studywise/features/ai/bloc/groq_bloc.dart';
+import 'package:studywise/features/groq/bloc/groq_bloc.dart';
 
 
 

@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:studywise/features/ai/ui/generate_button_ui.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:go_router/go_router.dart';
 import '../bloc/source_bloc.dart';
 
 class SourceScreen extends StatefulWidget {
@@ -67,10 +65,7 @@ class _SourceScreenState extends State<SourceScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.folderName),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
+
       ),
 
       body: BlocConsumer<SourceBloc, SourceState>(
@@ -136,14 +131,6 @@ class _SourceScreenState extends State<SourceScreen> {
 
                     return const SizedBox.shrink();
                   },
-                ),
-              ),
-
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: SummarizeButton(
-                  userId: user!.id,
-                  folderName: widget.folderName,
                 ),
               ),
             ],

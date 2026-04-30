@@ -1,5 +1,5 @@
-import 'package:studywise/features/ai/datasource/ai_data_source.dart';
-import 'package:studywise/features/ai/datasource/study_material_raw_text_grab_data_source.dart';
+import 'package:studywise/features/groq/datasource/groq_data_source.dart';
+import 'package:studywise/features/groq/datasource/study_material_raw_text_grab_data_source.dart';
 
 class AiTextRepo {
   final GrabRawText remoteDataSource;

@@ -1,4 +1,4 @@
-import 'package:studywise/features/ai/repo/ai_and_raw_text_repo.dart';
+import 'package:studywise/features/groq/repo/groq_and_raw_text_repo.dart';
 
 class SummarizeStudyMaterialsUseCase {
   final AiTextRepo repository;
