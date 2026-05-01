@@ -1,4 +1,5 @@
 import 'package:get_it/get_it.dart';
+import 'package:studywise/features/app_state_bloc.dart';
 import 'package:studywise/service/env_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -56,6 +57,8 @@ void initDependencies() {
   // Blocs
   sl.registerFactory(() => TopicBloc(getTopicsUseCase: sl(), processUseCase: sl()));
   sl.registerFactory(() => SourceBloc(getTopicFilesUseCase: sl(), processUseCase: sl()));
+
+  sl.registerFactory(() => AppStateCubit());
 
   // === GROQ ===
   // DataSource

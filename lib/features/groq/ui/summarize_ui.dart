@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:studywise/features/groq/bloc/groq_bloc.dart';
 
-class SummaryTab extends StatefulWidget {
+class SummaryTab extends StatelessWidget {
   final String folderName;
   final String userId;
 
@@ -13,33 +13,9 @@ class SummaryTab extends StatefulWidget {
   });
 
   @override
-  State<SummaryTab> createState() => _SummaryTabState();
-}
-
-class _SummaryTabState extends State<SummaryTab> {
-  @override
-  void initState() {
-    super.initState();
-
-    final bloc = context.read<AiBloc>();
-    final state = bloc.state;
-
-    if (state is! AiSuccess) {
-      bloc.add(
-        AiSummarizeRequested(
-          userId: widget.userId,
-          folderName: widget.folderName,
-        ),
-      );
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Summary: ${widget.folderName}'),
-      ),
+      appBar: AppBar(title: Text('Summary: $folderName')),
       body: BlocBuilder<AiBloc, AiState>(
         builder: (context, state) {
           if (state is AiLoading) {
@@ -49,8 +25,27 @@ class _SummaryTabState extends State<SummaryTab> {
           if (state is AiSuccess) {
             return Padding(
               padding: const EdgeInsets.all(16),
-              child: SingleChildScrollView(
-                child: Text(state.result),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ElevatedButton(
+                    onPressed: () {
+                      context.read<AiBloc>().add(
+                            AiReSummarizeRequested(
+                              folderName: folderName,
+                              userId: userId,
+                            ),
+                          );
+                    },
+                    child: const Text('Re-summarize'),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Text(state.result),
+                    ),
+                  ),
+                ],
               ),
             );
           }
@@ -59,7 +54,19 @@ class _SummaryTabState extends State<SummaryTab> {
             return Center(child: Text(state.message));
           }
 
-          return const Center(child: Text('Generating summary...'));
+          return Center(
+            child: ElevatedButton(
+              onPressed: () {
+                context.read<AiBloc>().add(
+                      AiSummarizeRequested(
+                        folderName: folderName,
+                        userId: userId,
+                      ),
+                    );
+              },
+              child: const Text('Generate Summary'),
+            ),
+          );
         },
       ),
     );

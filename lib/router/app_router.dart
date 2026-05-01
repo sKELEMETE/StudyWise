@@ -1,7 +1,8 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:studywise/features/app_state_bloc.dart';
 import 'package:studywise/features/groq/ui/summarize_ui.dart';
-import 'package:studywise/router/app_session.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../service/service_locator.dart';
@@ -48,13 +49,22 @@ final GoRouter router = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
-              path: '/source',
-              builder: (context, state) {
-                return SourceScreen(
-                  folderName: AppSession.folderName!,
-                );
-              },
-            ),
+  path: '/source',
+  builder: (context, state) {
+    final appState = context.watch<AppStateCubit>().state;
+
+    if (appState.userId == null || appState.folderName == null) {
+      return const Scaffold(
+        body: Center(child: Text('Select folder first')),
+      );
+    }
+
+    return SourceScreen(
+      folderName: appState.folderName!,
+      userId: appState.userId!,
+    );
+  },
+),
           ],
         ),
 
@@ -62,14 +72,23 @@ final GoRouter router = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
-              path: '/summary',
-              builder: (context, state) {
-                return SummaryTab(
-                  folderName: AppSession.folderName!,
-                  userId: AppSession.userId!,
-                );
-              },
-            ),
+  path: '/summary',
+  builder: (context, state) {
+    final appState = context.watch<AppStateCubit>().state;
+
+    if (appState.userId == null || appState.folderName == null) {
+      return const Scaffold(
+        body: Center(child: Text('Select folder first')),
+      );
+    }
+
+    return SummaryTab(
+      key: ValueKey(appState.folderName),
+      folderName: appState.folderName!,
+      userId: appState.userId!,
+    );
+  },
+),
           ],
         ),
 
@@ -77,14 +96,23 @@ final GoRouter router = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
-              path: '/quiz',
-              builder: (context, state) {
-                return QuizTab(
-                  folderName: AppSession.folderName!,
-                  userId: AppSession.userId!,
-                );
-              },
-            ),
+  path: '/quiz',
+  builder: (context, state) {
+    final appState = context.watch<AppStateCubit>().state;
+
+    if (appState.userId == null || appState.folderName == null) {
+      return const Scaffold(
+        body: Center(child: Text('Select folder first')),
+      );
+    }
+
+    return QuizTab(
+      key: ValueKey(appState.folderName),
+      folderName: appState.folderName!,
+      userId: appState.userId!,
+    );
+  },
+),
           ],
         ),
       ],

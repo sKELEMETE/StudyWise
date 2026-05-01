@@ -1,5 +1,16 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:logger/logger.dart';
+
+final logger = Logger(
+  printer: SimplePrinter(colors: true),
+);
+
+void logBlock(String label, String value) {
+  logger.i('---------- $label START ----------');
+  logger.i(value);
+  logger.i('---------- $label END ----------');
+}
 
 class GroqDataSource {
   final String apiKey;
@@ -38,10 +49,12 @@ $rawText
           'role': 'system',
           'content': 'You are an expert educator who gives concise summaries.'
         },
-        {'role': 'user', 'content': prompt}
+        {
+          'role': 'user',
+          'content': prompt,
+        }
       ],
       'temperature': 0.3,
-      'max_tokens': 500,
     });
 
     final response = await http.post(
@@ -51,23 +64,27 @@ $rawText
     );
 
     if (response.statusCode == 200) {
-  final data = jsonDecode(response.body);
+      final data = jsonDecode(response.body);
 
-  final aiOutput =
-      data['choices']?[0]?['message']?['content']?.toString() ?? '';
+      final aiOutput =
+          data['choices']?[0]?['message']?['content']?.toString() ?? '';
 
-  if (aiOutput.isEmpty) {
-    throw Exception('Empty response from Groq');
-  }
+      if (aiOutput.isEmpty) {
+        throw Exception('Empty response from Groq');
+      }
 
-  print(rawText);
-  print(aiOutput);
+      logBlock('RAW TEXT', rawText);
+      logBlock('PROMPT', prompt);
+      logBlock('AI OUTPUT', aiOutput);
 
-  return aiOutput.trim();
-} else {
-  throw Exception(
-    'Groq API Error: ${response.statusCode} - ${response.body}',
-  );
-}
+      return aiOutput.trim();
+    } else {
+      logger.e('Groq API Error: ${response.statusCode}');
+      logger.e(response.body);
+
+      throw Exception(
+        'Groq API Error: ${response.statusCode} - ${response.body}',
+      );
+    }
   }
 }

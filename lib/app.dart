@@ -6,9 +6,8 @@ import 'service/service_locator.dart';
 
 import 'features/study_material/bloc/topic_bloc.dart';
 import 'features/study_material/bloc/source_bloc.dart';
-import 'package:studywise/features/groq/bloc/groq_bloc.dart';
-
-
+import 'features/groq/bloc/groq_bloc.dart';
+import 'features/app_state_bloc.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -17,6 +16,8 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
+        BlocProvider(create: (_) => sl<AppStateCubit>()),
+
         BlocProvider(create: (_) => sl<TopicBloc>()),
         BlocProvider(create: (_) => sl<SourceBloc>()),
         BlocProvider(create: (_) => sl<AiBloc>()),
