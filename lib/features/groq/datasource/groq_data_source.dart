@@ -1,29 +1,14 @@
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
-import 'package:logger/logger.dart';
-
-final logger = Logger(
-  printer: SimplePrinter(colors: true),
-);
-
-void logBlock(String label, String value) {
-  logger.i('---------- $label START ----------');
-  logger.i(value);
-  logger.i('---------- $label END ----------');
-}
+import 'package:studywise/service/env_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 enum OutputFormat { paragraph, bullet }
 enum Difficulty { easy, medium }
 
 class GroqDataSource {
-  final String apiKey;
-
-  static const String endpoint =
-      'https://api.groq.com/openai/v1/chat/completions';
-
-  static const String model = 'llama-3.1-8b-instant';
-
-  GroqDataSource({required this.apiKey});
+  final SupabaseClient _supabase = Supabase.instance.client;
 
   Future<String> summarizeText(
     String rawText, {
@@ -64,6 +49,27 @@ class GroqDataSource {
     );
 
     return await _callGroq(mergedPrompt);
+  }
+
+  Future<String> generateQuizJson({
+    required String rawText,
+    required String mode,
+    required int count,
+  }) async {
+    if (rawText.trim().isEmpty) {
+      throw Exception('No readable text was found in this folder.');
+    }
+
+    final cleanedText = _cleanText(rawText);
+    final quizText = cleanedText.length > 14000
+        ? cleanedText.substring(0, 14000)
+        : cleanedText;
+
+    final prompt = mode == 'multiple_choice'
+        ? _buildMultipleChoicePrompt(quizText, count)
+        : _buildFlashcardPrompt(quizText, count);
+
+    return await _callGroq(prompt, temperature: 0.35);
   }
 
   String _cleanText(String text) {
@@ -164,55 +170,111 @@ $combined
 ''';
   }
 
-  Future<String> _callGroq(String prompt) async {
+  String _buildMultipleChoicePrompt(String text, int count) {
+    return '''
+Create a multiple choice quiz from the study material only.
+
+Rules:
+- Use only facts from the provided study material
+- Return valid JSON only, with no markdown
+- Create up to $count questions
+- Each question must have exactly 4 options
+- correctIndex must be 0, 1, 2, or 3
+- Include one short hint that helps without giving away the answer
+- Do not invent facts if the material is insufficient
+
+JSON shape:
+{
+  "questions": [
+    {
+      "question": "Question text",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correctIndex": 0,
+      "hint": "Short hint"
+    }
+  ]
+}
+
+Study material:
+$text
+''';
+  }
+
+  String _buildFlashcardPrompt(String text, int count) {
+    return '''
+Create flashcards from the study material only.
+
+Rules:
+- Use only facts from the provided study material
+- Return valid JSON only, with no markdown
+- Create up to $count flashcards
+- Each flashcard has front and back only
+- Keep front short and back clear
+- Do not invent facts if the material is insufficient
+
+JSON shape:
+{
+  "cards": [
+    {
+      "front": "Prompt or term",
+      "back": "Answer or explanation"
+    }
+  ]
+}
+
+Study material:
+$text
+''';
+  }
+
+  Future<String> _callGroq(
+    String prompt, {
+    double temperature = 0.2,
+  }) async {
+    final session = _supabase.auth.currentSession;
+    if (session == null) throw Exception('User authentication required');
+
     final headers = {
-      'Authorization': 'Bearer $apiKey',
+      'Authorization': 'Bearer ${session.accessToken}',
       'Content-Type': 'application/json',
     };
 
     final body = jsonEncode({
-      'model': model,
-      'messages': [
-        {
-          'role': 'system',
-          'content':
-              'You are a teacher explaining to a beginner. Be clear and direct.'
-        },
-        {
-          'role': 'user',
-          'content': prompt,
-        }
-      ],
-      'temperature': 0.2,
+      'prompt': prompt,
+      'temperature': temperature,
     });
 
-    final response = await http.post(
-      Uri.parse(endpoint),
-      headers: headers,
-      body: body,
-    );
+    final uri = Uri.parse('${EnvService.supabaseUrl}/functions/v1/groq_ai');
+    final response = await http
+        .post(
+          uri,
+          headers: headers,
+          body: body,
+        )
+        .timeout(const Duration(seconds: 45));
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
 
-      final aiOutput =
-          data['choices']?[0]?['message']?['content']?.toString() ?? '';
+      final aiOutput = data['output']?.toString() ?? '';
 
       if (aiOutput.isEmpty) {
         throw Exception('Empty response from Groq');
       }
 
-      logBlock('PROMPT', prompt);
-      logBlock('AI OUTPUT', aiOutput);
-
       return aiOutput.trim();
     } else {
-      logger.e('Groq API Error: ${response.statusCode}');
-      logger.e(response.body);
-
-      throw Exception(
-        'Groq API Error: ${response.statusCode} - ${response.body}',
-      );
+      throw Exception(_errorMessageFromResponse(response.body));
     }
+  }
+
+  String _errorMessageFromResponse(String body) {
+    try {
+      final data = jsonDecode(body);
+      final message = data['error']?.toString().trim() ?? '';
+      if (message.isNotEmpty && message.length <= 120) return message;
+    } catch (_) {}
+
+    return 'AI service is unavailable right now.';
   }
 }

@@ -5,8 +5,6 @@ import 'package:studywise/features/app_state_bloc.dart';
 import 'package:studywise/features/groq/ui/summarize_ui.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../service/service_locator.dart';
-import '../features/auth/bloc/auth_bloc.dart';
 import '../features/auth/ui/auth_screen.dart';
 import '../features/study_material/ui/home_screen.dart';
 import '../features/study_material/ui/source_screen.dart';
@@ -21,9 +19,14 @@ final GoRouter router = GoRouter(
   redirect: (context, state) {
     final session = Supabase.instance.client.auth.currentSession;
     final isAuthRoute = state.matchedLocation == '/auth';
+    final protectedTabs = {'/source', '/summary', '/quiz'};
 
     if (session == null) return isAuthRoute ? null : '/auth';
     if (isAuthRoute) return '/';
+    if (protectedTabs.contains(state.matchedLocation)) {
+      final appState = context.read<AppStateCubit>().state;
+      if (!appState.hasSelectedFolder) return '/';
+    }
     return null;
   },
   routes: [
@@ -34,10 +37,7 @@ final GoRouter router = GoRouter(
 
     GoRoute(
       path: '/auth',
-      builder: (context, state) => BlocProvider(
-        create: (_) => sl<AuthBloc>(),
-        child: const AuthScreen(),
-      ),
+      builder: (context, state) => const AuthScreen(),
     ),
 
     StatefulShellRoute.indexedStack(
@@ -49,22 +49,21 @@ final GoRouter router = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
-  path: '/source',
-  builder: (context, state) {
-    final appState = context.watch<AppStateCubit>().state;
+              path: '/source',
+              builder: (context, state) {
+                final appState = context.watch<AppStateCubit>().state;
 
-    if (appState.userId == null || appState.folderName == null) {
-      return const Scaffold(
-        body: Center(child: Text('Select folder first')),
-      );
-    }
+                if (!appState.hasSelectedFolder) {
+                  return const Scaffold(body: SizedBox.shrink());
+                }
 
-    return SourceScreen(
-      folderName: appState.folderName!,
-      userId: appState.userId!,
-    );
-  },
-),
+                return SourceScreen(
+                  key: ValueKey(appState.folderName),
+                  folderName: appState.folderName!,
+                  userId: appState.userId!,
+                );
+              },
+            ),
           ],
         ),
 
@@ -72,23 +71,21 @@ final GoRouter router = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
-  path: '/summary',
-  builder: (context, state) {
-    final appState = context.watch<AppStateCubit>().state;
+              path: '/summary',
+              builder: (context, state) {
+                final appState = context.watch<AppStateCubit>().state;
 
-    if (appState.userId == null || appState.folderName == null) {
-      return const Scaffold(
-        body: Center(child: Text('Select folder first')),
-      );
-    }
+                if (!appState.hasSelectedFolder) {
+                  return const Scaffold(body: SizedBox.shrink());
+                }
 
-    return SummaryTab(
-      key: ValueKey(appState.folderName),
-      folderName: appState.folderName!,
-      userId: appState.userId!,
-    );
-  },
-),
+                return SummaryTab(
+                  key: ValueKey(appState.folderName),
+                  folderName: appState.folderName!,
+                  userId: appState.userId!,
+                );
+              },
+            ),
           ],
         ),
 
@@ -96,23 +93,21 @@ final GoRouter router = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
-  path: '/quiz',
-  builder: (context, state) {
-    final appState = context.watch<AppStateCubit>().state;
+              path: '/quiz',
+              builder: (context, state) {
+                final appState = context.watch<AppStateCubit>().state;
 
-    if (appState.userId == null || appState.folderName == null) {
-      return const Scaffold(
-        body: Center(child: Text('Select folder first')),
-      );
-    }
+                if (!appState.hasSelectedFolder) {
+                  return const Scaffold(body: SizedBox.shrink());
+                }
 
-    return QuizTab(
-      key: ValueKey(appState.folderName),
-      folderName: appState.folderName!,
-      userId: appState.userId!,
-    );
-  },
-),
+                return QuizTab(
+                  key: ValueKey(appState.folderName),
+                  folderName: appState.folderName!,
+                  userId: appState.userId!,
+                );
+              },
+            ),
           ],
         ),
       ],

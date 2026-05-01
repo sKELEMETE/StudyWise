@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:studywise/features/app_state_bloc.dart';
+import 'package:studywise/features/study_material/ui/widgets/study_material_file_picker.dart';
+import 'package:studywise/shared/widgets/theme_mode_button.dart';
 import '../bloc/topic_bloc.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -16,7 +17,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _folderController = TextEditingController();
-  PlatformFile? _selectedFile;
+  StudyMaterialPickedFile? _selectedFile;
 
   final user = Supabase.instance.client.auth.currentUser;
 
@@ -59,20 +60,30 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    ElevatedButton(
+                    OutlinedButton.icon(
                       onPressed: () async {
-                        final result = await FilePicker.pickFiles(
-                          withData: true,
-                        );
+                        try {
+                          final pickedFile = await pickStudyMaterialFile(ctx);
+                          if (pickedFile == null) return;
 
-                        if (result != null &&
-                            result.files.isNotEmpty) {
                           setStateDialog(() {
-                            _selectedFile = result.files.first;
+                            _selectedFile = pickedFile;
                           });
+                        } catch (error) {
+                          if (!rootContext.mounted) return;
+                          ScaffoldMessenger.of(rootContext).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                error
+                                    .toString()
+                                    .replaceFirst('Exception: ', ''),
+                              ),
+                            ),
+                          );
                         }
                       },
-                      child: const Text('Pick File'),
+                      icon: const Icon(Icons.upload_file),
+                      label: const Text('Choose File'),
                     ),
                     if (_selectedFile != null) ...[
                       const SizedBox(height: 8),
@@ -89,12 +100,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     onPressed: () {
                       final folderName = _folderController.text.trim();
 
-                      if (folderName.isEmpty ||
-                          _selectedFile == null ||
-                          _selectedFile!.bytes == null) {
+                      if (folderName.isEmpty || _selectedFile == null) {
                         ScaffoldMessenger.of(rootContext).showSnackBar(
                           const SnackBar(
-                            content: Text('Fill all fields'),
+                            content: Text(
+                              'Enter a topic name and choose a file.',
+                            ),
                           ),
                         );
                         return;
@@ -105,8 +116,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           userId: userId,
                           folderName: folderName,
                           fileName: _selectedFile!.name,
-                          fileType: _selectedFile!.extension ?? 'unknown',
-                          fileBytes: _selectedFile!.bytes!,
+                          fileType: _selectedFile!.fileType,
+                          fileBytes: _selectedFile!.bytes,
                         ),
                       );
 
@@ -135,9 +146,14 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('Home'),
         actions: [
+          const ThemeModeButton(),
           IconButton(
+            tooltip: 'Sign out',
             onPressed: () async {
               await Supabase.instance.client.auth.signOut();
+              if (context.mounted) {
+                context.read<AppStateCubit>().clearSelection();
+              }
             },
             icon: const Icon(Icons.logout),
           )
@@ -159,15 +175,38 @@ class _HomeScreenState extends State<HomeScreen> {
         },
         builder: (context, state) {
           return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text('Welcome ${user!.email ?? ""}'),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Welcome back',
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      user!.email ?? '',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                          ),
+                    ),
+                  ],
+                ),
               ),
-              ElevatedButton(
-                onPressed: () =>
-                    _showCreateFolderDialog(context, user!.id),
-                child: const Text('Create Topic'),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                child: FilledButton.icon(
+                  onPressed: () => _showCreateFolderDialog(context, user!.id),
+                  icon: const Icon(Icons.create_new_folder),
+                  label: const Text('Create Topic'),
+                ),
               ),
               Expanded(
                 child: Builder(
@@ -180,28 +219,39 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     if (state is TopicLoaded) {
                       if (state.topics.isEmpty) {
-                        return const Center(
-                          child: Text('No topics'),
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Text(
+                              'Create a topic to start studying.',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.bodyLarge,
+                            ),
+                          ),
                         );
                       }
 
-                      return ListView.builder(
+                      return ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                         itemCount: state.topics.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 8),
                         itemBuilder: (context, index) {
                           final folder = state.topics[index];
 
-                          return ListTile(
-                            leading: const Icon(Icons.folder),
-                            title: Text(folder.name),
-                            onTap: () {
-                              final appState =
-                                  context.read<AppStateCubit>();
+                          return Card(
+                            child: ListTile(
+                              leading: const Icon(Icons.folder),
+                              title: Text(folder.name),
+                              trailing: const Icon(Icons.chevron_right),
+                              onTap: () {
+                                context.read<AppStateCubit>().selectFolder(
+                                      userId: user!.id,
+                                      folderName: folder.name,
+                                    );
 
-                              appState.setFolder(folder.name);
-                              appState.setUser(user!.id);
-
-                              context.go('/source');
-                            },
+                                context.go('/source');
+                              },
+                            ),
                           );
                         },
                       );

@@ -6,13 +6,56 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 }
 
+const maxFileSizeBytes = 15 * 1024 * 1024
+const allowedExtensions = new Set(["jpg", "jpeg", "png", "pdf", "txt", "md"])
+
 function getMimeType(extension: string): string {
   const ext = extension.toLowerCase()
 
   if (ext === "jpg" || ext === "jpeg") return "image/jpeg"
   if (ext === "png") return "image/png"
   if (ext === "pdf") return "application/pdf"
+  if (ext === "md") return "text/markdown"
+  if (ext === "txt") return "text/plain"
   return "text/plain"
+}
+
+function requireSafeFolderName(folderName: FormDataEntryValue | null): string {
+  if (typeof folderName !== "string") throw new Error("Missing folder name")
+
+  const cleanName = folderName.trim()
+
+  if (!cleanName) throw new Error("Missing folder name")
+  if (cleanName.includes("/") || cleanName.includes("\\")) {
+    throw new Error("Invalid folder name")
+  }
+
+  return cleanName
+}
+
+function requireSafeFileName(fileName: FormDataEntryValue | null): string {
+  if (typeof fileName !== "string") throw new Error("Missing file name")
+
+  const cleanName = fileName.split(/[\\/]/).pop()?.trim() ?? ""
+
+  if (!cleanName) throw new Error("Missing file name")
+  if (cleanName === "." || cleanName === "..") {
+    throw new Error("Invalid file name")
+  }
+
+  return cleanName
+}
+
+function requireAllowedExtension(fileType: FormDataEntryValue | null): string {
+  if (typeof fileType !== "string") throw new Error("Unsupported file type")
+
+  const ext = fileType.toLowerCase().replace(/^\./, "")
+
+  if (!allowedExtensions.has(ext)) {
+    throw new Error("Unsupported file type")
+  }
+
+  return ext
 }
 
 function createSupabaseClient(req: Request) {
@@ -38,6 +81,16 @@ serve(async (req) => {
   }
 
   try {
+    if (req.method !== "POST") {
+      return new Response(
+        JSON.stringify({ error: "Method not allowed" }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 405,
+        },
+      )
+    }
+
     const supabase = createSupabaseClient(req)
 
     const authHeader = req.headers.get("Authorization")
@@ -50,13 +103,19 @@ serve(async (req) => {
     }
 
     const formData = await req.formData()
-    const file = formData.get("file") as File
-    const folderName = formData.get("folderName") as string
-    const fileName = formData.get("fileName") as string
-    const fileType = formData.get("fileType") as string
-    const extractedText = formData.get("extractedText") as string
+    const file = formData.get("file")
+    const folderName = requireSafeFolderName(formData.get("folderName"))
+    const fileName = requireSafeFileName(formData.get("fileName"))
+    const fileType = requireAllowedExtension(formData.get("fileType"))
+    const extractedTextEntry = formData.get("extractedText")
+    const extractedText = typeof extractedTextEntry === "string"
+      ? extractedTextEntry.trim()
+      : ""
 
-    if (!file) throw new Error("Missing file")
+    if (!(file instanceof File)) throw new Error("Missing file")
+    if (file.size === 0) throw new Error("Missing file")
+    if (file.size > maxFileSizeBytes) throw new Error("File is too large")
+    if (!extractedText) throw new Error("No readable text found")
 
     const filePath = `${user.id}/${folderName}/${fileName}`
     const arrayBuffer = await file.arrayBuffer()
@@ -69,6 +128,12 @@ serve(async (req) => {
       })
 
     if (uploadError) throw uploadError
+
+    await supabase
+      .from("study_materials")
+      .delete()
+      .eq("file_path", filePath)
+      .eq("student_id", user.id)
 
     const { data, error: dbError } = await supabase
       .from("study_materials")
@@ -88,8 +153,10 @@ serve(async (req) => {
     })
 
   } catch (err) {
+    const message = err instanceof Error ? err.message : "Upload failed"
+
     return new Response(
-      JSON.stringify({ error: err.message }),
+      JSON.stringify({ error: message }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 400,

@@ -7,44 +7,32 @@ class GrabRawText {
     required String userId,
     required String folderName,
   }) async {
-    final path = '$userId/$folderName/%';
+    final folderPath = '$userId/$folderName';
+    final files = await supabase.storage
+        .from('StudyMaterials')
+        .list(path: folderPath);
 
-    print('\n[GrabRawText] ===== DEBUG START =====');
-    print('[GrabRawText] userId: $userId');
-    print('[GrabRawText] folderName: $folderName');
-    print('[GrabRawText] query path: $path');
+    if (files.isEmpty) return [];
 
-    try {
-      final response = await supabase
-          .from('study_materials')
-          .select('file_path, raw_text') // 👈 IMPORTANT
-          .ilike('file_path', path);
+    final filePaths = files
+        .where((file) => file.name.trim().isNotEmpty)
+        .map((file) => '$folderPath/${file.name}')
+        .toList(growable: false);
 
-      final data = response as List;
+    if (filePaths.isEmpty) return [];
 
-      print('[GrabRawText] Total matched rows: ${data.length}');
-      print('[GrabRawText] --- FILES FOUND ---');
+    final response = await supabase
+        .from('study_materials')
+        .select('file_path, raw_text')
+        .eq('student_id', userId)
+        .inFilter('file_path', filePaths)
+        .order('file_path');
 
-      for (var i = 0; i < data.length; i++) {
-        final filePath = data[i]['file_path'];
-        final text = data[i]['raw_text'] as String? ?? '';
+    final data = response as List;
 
-        print('[File $i]');
-        print('  path: $filePath');
-        print('  text length: ${text.length}');
-      }
-
-      print('[GrabRawText] ===== DEBUG END =====\n');
-
-      final result = data
-          .map((e) => e['raw_text'] as String? ?? '')
-          .toList();
-
-      return result;
-    } catch (e, stackTrace) {
-      print('[GrabRawText][ERROR] $e');
-      print('[GrabRawText][STACKTRACE] $stackTrace');
-      rethrow;
-    }
+    return data
+        .map((item) => item['raw_text'] as String? ?? '')
+        .where((text) => text.trim().isNotEmpty)
+        .toList(growable: false);
   }
 }

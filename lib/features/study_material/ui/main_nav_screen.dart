@@ -2,53 +2,46 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:studywise/features/app_state_bloc.dart';
-import 'package:studywise/features/groq/bloc/ai_bloc.dart';
 
 class MainNavScreen extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
 
   const MainNavScreen({super.key, required this.navigationShell});
 
-  void _onTap(BuildContext context, int index) {
-  navigationShell.goBranch(index);
-
-  if (index == 1) {
-    final appState = context.read<AppStateCubit>().state;
-
-    if (appState.userId == null || appState.folderName == null) return;
-
-    context.read<AiBloc>().add(
-          AiSummarizeRequested(
-            userId: appState.userId!,
-            folderName: appState.folderName!,
-          ),
-        );
+  void _onTap(int index) {
+    navigationShell.goBranch(index);
   }
-}
 
   @override
   Widget build(BuildContext context) {
+    final appState = context.watch<AppStateCubit>().state;
+
+    if (!appState.hasSelectedFolder) {
+      return const Scaffold(body: SizedBox.shrink());
+    }
+
     return Scaffold(
       body: navigationShell,
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: navigationShell.currentIndex,
-        onTap: (index) => _onTap(context, index),
-        items: const [
-          BottomNavigationBarItem(
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: navigationShell.currentIndex,
+        onDestinationSelected: _onTap,
+        destinations: const [
+          NavigationDestination(
             icon: Icon(Icons.folder),
             label: 'Source',
           ),
-          BottomNavigationBarItem(
+          NavigationDestination(
             icon: Icon(Icons.summarize),
             label: 'Summary',
           ),
-          BottomNavigationBarItem(
+          NavigationDestination(
             icon: Icon(Icons.quiz),
             label: 'Quiz',
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        tooltip: 'Topics',
         onPressed: () {
           context.go('/');
         },

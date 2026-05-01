@@ -20,12 +20,4 @@ class EnvService {
     }
     return value;
   }
-
-  static String get groqApiKey {
-    final value = dotenv.env['GROQ_API_KEY'];
-    if (value == null || value.isEmpty) {
-      throw Exception('GROQ_API_KEY is missing in .env');
-    }
-    return value;
-  }
 }

@@ -21,8 +21,8 @@ class PdfLocalDataSource {
       for (int i = 1; i <= document.pagesCount; i++) {
         final page = await document.getPage(i);
         final imgPage = await page.render(
-          width: page.width * 2,
-          height: page.height * 2,
+          width: page.width * 1.5,
+          height: page.height * 1.5,
           format: pdfx.PdfPageImageFormat.jpeg,
         );
         if (imgPage != null) images.add(imgPage.bytes);

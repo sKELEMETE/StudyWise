@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:studywise/core/error/friendly_error.dart';
 import '../usecase/get_topic_files_usecase.dart';
 import '../usecase/process_and_upload_material_usecase.dart';
 
@@ -29,16 +30,21 @@ class UploadFileRequested extends SourceEvent {
 }
 
 abstract class SourceState {}
+
 class SourceInitial extends SourceState {}
+
 class SourceLoading extends SourceState {}
+
 class SourceLoaded extends SourceState {
   final List<FileObject> files;
   SourceLoaded(this.files);
 }
+
 class SourceError extends SourceState {
   final String message;
   SourceError(this.message);
 }
+
 class SourceActionSuccess extends SourceState {
   final String message;
   SourceActionSuccess(this.message);
@@ -48,22 +54,34 @@ class SourceBloc extends Bloc<SourceEvent, SourceState> {
   final GetTopicFilesUseCase getTopicFilesUseCase;
   final ProcessAndUploadMaterialUseCase processUseCase;
 
-  SourceBloc({required this.getTopicFilesUseCase, required this.processUseCase}) : super(SourceInitial()) {
+  SourceBloc({
+    required this.getTopicFilesUseCase,
+    required this.processUseCase,
+  }) : super(SourceInitial()) {
     on<LoadSourceRequested>(_onLoadSource);
     on<UploadFileRequested>(_onUploadFile);
   }
 
-  Future<void> _onLoadSource(LoadSourceRequested event, Emitter<SourceState> emit) async {
+  Future<void> _onLoadSource(
+    LoadSourceRequested event,
+    Emitter<SourceState> emit,
+  ) async {
     emit(SourceLoading());
     try {
-      final files = await getTopicFilesUseCase.execute(event.userId, event.folderName);
+      final files = await getTopicFilesUseCase.execute(
+        event.userId,
+        event.folderName,
+      );
       emit(SourceLoaded(files));
     } catch (e) {
-      emit(SourceError(e.toString()));
+      emit(SourceError(friendlyErrorMessage(e)));
     }
   }
 
-  Future<void> _onUploadFile(UploadFileRequested event, Emitter<SourceState> emit) async {
+  Future<void> _onUploadFile(
+    UploadFileRequested event,
+    Emitter<SourceState> emit,
+  ) async {
     emit(SourceLoading());
     try {
       await processUseCase.execute(
@@ -73,10 +91,20 @@ class SourceBloc extends Bloc<SourceEvent, SourceState> {
         fileBytes: event.fileBytes,
       );
       emit(SourceActionSuccess('File uploaded successfully'));
-      add(LoadSourceRequested(userId: event.userId, folderName: event.folderName));
+      add(
+        LoadSourceRequested(
+          userId: event.userId,
+          folderName: event.folderName,
+        ),
+      );
     } catch (e) {
-      emit(SourceError('Upload failed: $e'));
-      add(LoadSourceRequested(userId: event.userId, folderName: event.folderName));
+      emit(SourceError(friendlyErrorMessage(e)));
+      add(
+        LoadSourceRequested(
+          userId: event.userId,
+          folderName: event.folderName,
+        ),
+      );
     }
   }
 }
