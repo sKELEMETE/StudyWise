@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:studywise/features/groq/bloc/groq_bloc.dart';
+import 'package:studywise/features/groq/bloc/ai_bloc.dart';
 
 class SummaryTab extends StatelessWidget {
   final String folderName;

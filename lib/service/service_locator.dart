@@ -22,7 +22,7 @@ import '../features/study_material/bloc/topic_bloc.dart';
 import '../features/study_material/bloc/source_bloc.dart';
 
 import '../features/groq/usecase/groq_usecase.dart';
-import '../features/groq/bloc/groq_bloc.dart';
+import '../features/groq/bloc/ai_bloc.dart';
 import '../features/groq/datasource/groq_data_source.dart';
 import 'package:studywise/features/groq/repo/groq_and_raw_text_repo.dart';
 import 'package:studywise/features/groq/datasource/study_material_raw_text_grab_data_source.dart';

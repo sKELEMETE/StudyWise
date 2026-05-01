@@ -7,10 +7,14 @@ import 'service/service_locator.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await EnvService.init();
-  await SupabaseConfig.init();
+  try {
+    await EnvService.init();
+    await SupabaseConfig.init();
+    initDependencies();
 
-  initDependencies();
-
-  runApp(const MyApp());
+    runApp(const MyApp());
+  } catch (e, stack) {
+    debugPrint('Startup error: $e');
+    debugPrint('$stack');
+  }
 }
