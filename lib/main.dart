@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:logger/logger.dart';
 import 'app.dart';
 import 'service/supabase/supabase_config.dart';
 import 'service/env_service.dart';
@@ -7,6 +8,7 @@ import 'service/service_locator.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  final logger = Logger();
 
   try {
     await EnvService.init();
@@ -16,27 +18,38 @@ Future<void> main() async {
     runApp(const MyApp());
   } catch (e, stack) {
     if (kDebugMode) {
-      debugPrint('Startup error: $e');
-      debugPrint('$stack');
+      logger.e('Startup error', error: e, stackTrace: stack);
     }
-    runApp(const StartupErrorApp());
+    runApp(StartupErrorApp(onRetry: () => main()));
   }
 }
 
 class StartupErrorApp extends StatelessWidget {
-  const StartupErrorApp({super.key});
+  final VoidCallback onRetry;
+
+  const StartupErrorApp({super.key, required this.onRetry});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
       home: Scaffold(
         body: Center(
           child: Padding(
-            padding: EdgeInsets.all(24),
-            child: Text(
-              'StudyWise could not start. Please check the app configuration.',
-              textAlign: TextAlign.center,
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  'StudyWise failed to start. Check your configuration.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: onRetry,
+                  child: const Text('Retry'),
+                ),
+              ],
             ),
           ),
         ),

@@ -3,7 +3,6 @@ import 'package:studywise/core/error/friendly_error.dart';
 import '../usecase/sign_in_usecase.dart';
 import '../usecase/sign_up_usecase.dart';
 
-// Events
 abstract class AuthEvent {}
 
 class AuthSignUpRequested extends AuthEvent {
@@ -18,7 +17,6 @@ class AuthSignInRequested extends AuthEvent {
   AuthSignInRequested(this.email, this.password);
 }
 
-// States
 abstract class AuthState {}
 
 class AuthInitial extends AuthState {}
@@ -35,10 +33,10 @@ class AuthFailure extends AuthState {
   AuthFailure(this.error);
 }
 
-// BLoC
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final SignInUseCase signInUseCase;
   final SignUpUseCase signUpUseCase;
+  final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
 
   AuthBloc({required this.signInUseCase, required this.signUpUseCase})
     : super(AuthInitial()) {
@@ -50,8 +48,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthSignUpRequested event,
     Emitter<AuthState> emit,
   ) async {
-    if (event.email.trim().isEmpty || event.password.isEmpty) {
-      emit(AuthFailure('Enter email and password.'));
+    if (!emailRegex.hasMatch(event.email)) {
+      emit(AuthFailure('Enter a valid email address.'));
       return;
     }
 
@@ -73,15 +71,20 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthSignInRequested event,
     Emitter<AuthState> emit,
   ) async {
-    if (event.email.trim().isEmpty || event.password.isEmpty) {
-      emit(AuthFailure('Enter email and password.'));
+    if (!emailRegex.hasMatch(event.email)) {
+      emit(AuthFailure('Enter a valid email address.'));
+      return;
+    }
+
+    if (event.password.isEmpty) {
+      emit(AuthFailure('Enter your password.'));
       return;
     }
 
     emit(AuthLoading());
     try {
       await signInUseCase.execute(event.email, event.password);
-      emit(AuthSuccess('Login successful!'));
+      emit(AuthSuccess('Login successful.'));
     } catch (e) {
       emit(AuthFailure(friendlyErrorMessage(e)));
     }

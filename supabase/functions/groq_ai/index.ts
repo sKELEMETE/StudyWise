@@ -7,7 +7,6 @@ const corsHeaders = {
 }
 
 const groqEndpoint = "https://api.groq.com/openai/v1/chat/completions"
-const model = "llama-3.1-8b-instant"
 
 function createSupabaseClient(req: Request) {
   const authHeader = req.headers.get("Authorization")
@@ -44,6 +43,8 @@ serve(async (req) => {
 
     const groqApiKey = Deno.env.get("GROQ_API_KEY")
     if (!groqApiKey) throw new Error("AI service is not configured")
+    
+    const model = Deno.env.get("GROQ_MODEL") || "llama-3.1-8b-instant"
 
     const supabase = createSupabaseClient(req)
     const authHeader = req.headers.get("Authorization")
@@ -54,7 +55,13 @@ serve(async (req) => {
       throw new Error("Unauthorized user")
     }
 
-    const body = await req.json()
+    let body;
+    try {
+      body = await req.json()
+    } catch (e) {
+      throw new Error("Invalid JSON payload")
+    }
+    
     const prompt = typeof body.prompt === "string" ? body.prompt.trim() : ""
     const temperature = typeof body.temperature === "number" ? body.temperature : 0.2
 
@@ -107,6 +114,7 @@ serve(async (req) => {
     )
   } catch (err) {
     const message = err instanceof Error ? err.message : "AI request failed"
+    console.error("AI Service Error:", err)
 
     return new Response(
       JSON.stringify({ error: message }),
