@@ -49,6 +49,7 @@ dependencies:
   pdfx: ^2.9.2
   groq: ^1.1.1
   logger: ^2.7.0
+  image_picker: ^1.2.2
 
 dev_dependencies:
   flutter_test:

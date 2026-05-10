@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 enum StudyMaterialUploadType {
   pdf(
@@ -69,70 +70,65 @@ Future<StudyMaterialPickedFile?> pickStudyMaterialFile(
               const SizedBox(height: 16),
 
               Row(
-  children: [
-    Expanded(
-      flex: 2,
-      child: OutlinedButton.icon(
-        style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 18),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-        onPressed: () => Navigator.pop(
-          context,
-          StudyMaterialUploadType.pdf,
-        ),
-        icon: const Icon(Icons.picture_as_pdf_rounded),
-        label: const Text('PDF'),
-      ),
-    ),
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      onPressed: () => Navigator.pop(
+                        context,
+                        StudyMaterialUploadType.pdf,
+                      ),
+                      icon: const Icon(Icons.picture_as_pdf_rounded),
+                      label: const Text('PDF'),
+                    ),
+                  ),
 
-    const SizedBox(width: 10),
+                  const SizedBox(width: 10),
 
-    Expanded(
-      flex: 2,
-      child: OutlinedButton.icon(
-        style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 18),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-        onPressed: () => Navigator.pop(
-          context,
-          StudyMaterialUploadType.image,
-        ),
-        icon: const Icon(Icons.image_rounded),
-        label: const Text('Image'),
-      ),
-    ),
+                  Expanded(
+                    flex: 2,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      onPressed: () => Navigator.pop(
+                        context,
+                        StudyMaterialUploadType.image,
+                      ),
+                      icon: const Icon(Icons.image_rounded),
+                      label: const Text('Image'),
+                    ),
+                  ),
 
-    const SizedBox(width: 10),
+                  const SizedBox(width: 10),
 
-    Expanded(
-      flex: 1,
-      child: FilledButton(
-        style: FilledButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 18),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Camera support coming soon.',
+                  Expanded(
+                    flex: 1,
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      onPressed: () => Navigator.pop(
+                        context,
+                        StudyMaterialUploadType.camera,
+                      ),
+                      child: const Icon(Icons.photo_camera_rounded),
+                    ),
+                  ),
+                ],
               ),
-            ),
-          );
-        },
-        child: const Icon(Icons.photo_camera_rounded),
-      ),
-    ),
-  ],
-),
             ],
           ),
         ),
@@ -141,6 +137,24 @@ Future<StudyMaterialPickedFile?> pickStudyMaterialFile(
   );
 
   if (!context.mounted || uploadType == null) return null;
+
+  if (uploadType == StudyMaterialUploadType.camera) {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 50,
+    );
+
+    if (pickedFile == null) return null;
+
+    final bytes = await pickedFile.readAsBytes();
+
+    return StudyMaterialPickedFile(
+      name: pickedFile.name,
+      fileType: 'jpg',
+      bytes: bytes,
+    );
+  }
 
   final result = await FilePicker.pickFiles(
     type: FileType.custom,
