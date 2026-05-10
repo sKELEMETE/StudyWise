@@ -1,115 +1,273 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3"
+import 'dart:convert';
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-}
+import 'package:http/http.dart' as http;
+import 'package:studywise/service/env_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-const groqEndpoint = "https://api.groq.com/openai/v1/chat/completions"
-const MAX_PROMPT_LENGTH = 50000;
+enum OutputFormat { paragraph, bullet }
 
-function createSupabaseClient(req: Request) {
-  const authHeader = req.headers.get("Authorization")
+enum Difficulty { easy, medium }
 
-  return createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
+class GroqDataSource {
+  final SupabaseClient _supabase = Supabase.instance.client;
+
+  Future<String> summarizeText(
+    String rawText, {
+    OutputFormat format = OutputFormat.paragraph,
+    Difficulty difficulty = Difficulty.easy,
+    String language = 'English',
+  }) async {
+    if (rawText.trim().isEmpty) {
+      throw Exception('Input text is empty');
+    }
+
+    final cleanedText = _cleanText(rawText);
+    final chunks = _splitIntoChunks(cleanedText, 1500);
+
+    List<String> summaries = [];
+
+    for (final chunk in chunks) {
+      final prompt = _buildChunkPrompt(
+        chunk,
+        format: format,
+        difficulty: difficulty,
+        language: language,
+      );
+
+      final result = await _callGroq(prompt);
+      summaries.add(result);
+    }
+
+    if (summaries.length == 1) {
+      return summaries.first;
+    }
+
+    final mergedPrompt = _buildMergePrompt(
+      summaries,
+      format: format,
+      difficulty: difficulty,
+      language: language,
+    );
+
+    return await _callGroq(mergedPrompt);
+  }
+
+  Future<String> generateQuizJson({
+    required String rawText,
+    required String mode,
+    required int count,
+  }) async {
+    if (rawText.trim().isEmpty) {
+      throw Exception('No readable text was found in this folder.');
+    }
+
+    final cleanedText = _cleanText(rawText);
+    final quizText = cleanedText.length > 14000
+        ? cleanedText.substring(0, 14000)
+        : cleanedText;
+
+    final prompt = mode == 'multiple_choice'
+        ? _buildMultipleChoicePrompt(quizText, count)
+        : _buildFlashcardPrompt(quizText, count);
+
+    return await _callGroq(prompt, temperature: 0.8);
+  }
+
+  String _cleanText(String text) {
+    return text
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .replaceAll(RegExp(r'<[^>]*>'), '')
+        .trim();
+  }
+
+  List<String> _splitIntoChunks(String text, int maxLength) {
+    List<String> chunks = [];
+    int start = 0;
+
+    while (start < text.length) {
+      int end = start + maxLength;
+      if (end > text.length) end = text.length;
+
+      chunks.add(text.substring(start, end));
+      start = end;
+    }
+
+    return chunks;
+  }
+
+  String _difficultyRule(Difficulty difficulty) {
+    switch (difficulty) {
+      case Difficulty.easy:
+        return 'Use very simple words. Short sentences.';
+      case Difficulty.medium:
+        return 'Use clear words. Slight detail allowed.';
+    }
+  }
+
+  String _formatRule(OutputFormat format) {
+    switch (format) {
+      case OutputFormat.paragraph:
+        return '''
+Write in paragraph form.
+Include explanation and example in the same paragraph.
+''';
+      case OutputFormat.bullet:
+        return '''
+Use this format:
+
+Topic:
+- Explanation
+- Key points
+- Example
+''';
+    }
+  }
+
+  String _buildChunkPrompt(
+    String text, {
+    required OutputFormat format,
+    required Difficulty difficulty,
+    required String language,
+  }) {
+    return '''
+Summarize clearly.
+
+Rules:
+- ${_difficultyRule(difficulty)}
+- Use $language language
+- Break into sections if topics change
+- One example per topic
+- No filler
+
+${_formatRule(format)}
+
+Text:
+$text
+''';
+  }
+
+  String _buildMergePrompt(
+    List<String> summaries, {
+    required OutputFormat format,
+    required Difficulty difficulty,
+    required String language,
+  }) {
+    final combined = summaries.join('\n\n');
+
+    return '''
+Combine and simplify.
+
+Rules:
+- ${_difficultyRule(difficulty)}
+- Use $language language
+- Merge similar ideas
+- Keep structure if topics differ
+- Add one final question
+
+${_formatRule(format)}
+
+Summaries:
+$combined
+''';
+  }
+
+  String _buildMultipleChoicePrompt(String text, int count) {
+    return '''
+Create a multiple choice quiz from the study material only.
+
+Rules:
+- Pick facts from entirely different random sections of the text to ensure variety
+- Use only facts from the provided study material
+- Return valid JSON only, with no markdown
+- Create up to $count questions
+- Each question must have exactly 4 options
+- correctIndex must be 0, 1, 2, or 3
+- Include one short hint that helps without giving away the answer
+- Do not invent facts if the material is insufficient
+
+JSON shape:
+{
+  "questions": [
     {
-      global: { headers: authHeader ? { Authorization: authHeader } : {} },
-      auth: { persistSession: false },
-    },
-  )
+      "question": "Question text",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correctIndex": 0,
+      "hint": "Short hint"
+    }
+  ]
 }
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders })
+Study material:
+$text
+''';
   }
 
-  try {
-    if (req.method !== "POST") {
-      return new Response(JSON.stringify({ error: "Method not allowed" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 405,
-      })
+  String _buildFlashcardPrompt(String text, int count) {
+    return '''
+Create flashcards from the study material only.
+
+Rules:
+- Pick facts from entirely different random sections of the text to ensure variety
+- Use only facts from the provided study material
+- Return valid JSON only, with no markdown
+- Create up to $count flashcards
+- Each flashcard has front and back only
+- Keep front short and back clear
+- Do not invent facts if the material is insufficient
+
+JSON shape:
+{
+  "cards": [
+    {
+      "front": "Prompt or term",
+      "back": "Answer or explanation"
     }
+  ]
+}
 
-    const groqApiKey = Deno.env.get("GROQ_API_KEY")
-    if (!groqApiKey) throw new Error("AI service is not configured")
-    
-    const model = Deno.env.get("GROQ_MODEL") || "llama-3.1-8b-instant"
+Study material:
+$text
+''';
+  }
 
-    const supabase = createSupabaseClient(req)
-    const authHeader = req.headers.get("Authorization")
-    const token = authHeader ? authHeader.replace("Bearer ", "") : ""
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+  Future<String> _callGroq(String prompt, {double temperature = 0.2}) async {
+    final session = _supabase.auth.currentSession;
+    if (session == null) throw Exception('User authentication required');
 
-    if (authError || !user) {
-      throw new Error("Unauthorized user")
+    final headers = {
+      'Authorization': 'Bearer ${session.accessToken}',
+      'Content-Type': 'application/json',
+    };
+
+    final body = jsonEncode({'prompt': prompt, 'temperature': temperature});
+
+    final uri = Uri.parse('${EnvService.supabaseUrl}/functions/v1/groq_ai');
+    final response = await http
+        .post(uri, headers: headers, body: body)
+        .timeout(const Duration(seconds: 45));
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+
+      final aiOutput = data['output']?.toString() ?? '';
+
+      if (aiOutput.isEmpty) {
+        throw Exception('Empty response from Groq');
+      }
+
+      return aiOutput.trim();
+    } else {
+      throw Exception(_errorMessageFromResponse(response.body));
     }
+  }
 
-    let body;
+  String _errorMessageFromResponse(String body) {
     try {
-      body = await req.json()
-    } catch (e) {
-      throw new Error("Validation Error: Invalid JSON payload")
-    }
-    
-    const prompt = typeof body.prompt === "string" ? body.prompt.trim() : ""
-    const temperature = typeof body.temperature === "number" ? body.temperature : 0.2
+      final data = jsonDecode(body);
+      final message = data['error']?.toString().trim() ?? '';
+      if (message.isNotEmpty && message.length <= 120) return message;
+    } catch (_) {}
 
-    if (!prompt) throw new Error("Validation Error: Missing prompt")
-    if (prompt.length > MAX_PROMPT_LENGTH) {
-      throw new Error(`Validation Error: Prompt exceeds maximum length of ${MAX_PROMPT_LENGTH} characters.`);
-    }
-
-    const groqResponse = await fetch(groqEndpoint, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${groqApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          {
-            role: "system",
-            content: "You are a teacher explaining to a beginner. Be clear and direct.",
-          },
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-        temperature,
-      }),
-    })
-
-    if (!groqResponse.ok) {
-      throw new Error("AI service failed to process request")
-    }
-
-    const data = await groqResponse.json()
-    const rawOutput = data?.choices?.[0]?.message?.content
-    const output = typeof rawOutput === "string" ? rawOutput.trim() : ""
-
-    if (!output) throw new Error("AI returned an empty response")
-
-    return new Response(JSON.stringify({ output }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    })
-  } catch (err) {
-    console.error("AI Service Error:", err)
-    const isValidation = err instanceof Error && err.message.includes("Validation");
-
-    return new Response(
-      JSON.stringify({ error: isValidation ? err.message : "Internal Server Error" }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: isValidation ? 400 : 500,
-      },
-    )
+    return 'AI service is unavailable right now.';
   }
-})
+}

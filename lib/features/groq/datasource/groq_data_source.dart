@@ -70,7 +70,7 @@ class GroqDataSource {
         ? _buildMultipleChoicePrompt(quizText, count)
         : _buildFlashcardPrompt(quizText, count);
 
-    return await _callGroq(prompt, temperature: 0.35);
+    return await _callGroq(prompt, temperature: 0.8);
   }
 
   String _cleanText(String text) {
@@ -176,6 +176,7 @@ $combined
 Create a multiple choice quiz from the study material only.
 
 Rules:
+- Pick facts from entirely different random sections of the text to ensure variety
 - Use only facts from the provided study material
 - Return valid JSON only, with no markdown
 - Create up to $count questions
@@ -206,6 +207,7 @@ $text
 Create flashcards from the study material only.
 
 Rules:
+- Pick facts from entirely different random sections of the text to ensure variety
 - Use only facts from the provided study material
 - Return valid JSON only, with no markdown
 - Create up to $count flashcards
