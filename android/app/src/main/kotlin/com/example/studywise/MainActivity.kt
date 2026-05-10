@@ -1,4 +1,4 @@
-package com.example.studywise
+package com.dustin.studywise
 
 import io.flutter.embedding.android.FlutterActivity
 
