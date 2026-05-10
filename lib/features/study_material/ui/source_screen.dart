@@ -41,19 +41,29 @@ class _SourceScreenState extends State<SourceScreen> {
 
   void _loadFiles() {
     context.read<SourceBloc>().add(
-      LoadSourceRequested(userId: widget.userId, folderName: widget.folderName),
+      LoadSourceRequested(
+        userId: widget.userId,
+        folderName: widget.folderName,
+      ),
     );
   }
 
   Future<void> _uploadFile() async {
     late final StudyMaterialPickedFile? file;
+
     try {
       file = await pickStudyMaterialFile(context);
     } catch (error) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(error.toString().replaceFirst('Exception: ', '')),
+          content: Text(
+            error.toString().replaceFirst(
+              'Exception: ',
+              '',
+            ),
+          ),
         ),
       );
       return;
@@ -85,35 +95,36 @@ class _SourceScreenState extends State<SourceScreen> {
           if (state is SourceActionSuccess) {
             ScaffoldMessenger.of(
               context,
-            ).showSnackBar(SnackBar(content: Text(state.message)));
+            ).showSnackBar(
+              SnackBar(content: Text(state.message)),
+            );
           }
 
           if (state is SourceError) {
             ScaffoldMessenger.of(
               context,
-            ).showSnackBar(SnackBar(content: Text(state.message)));
+            ).showSnackBar(
+              SnackBar(content: Text(state.message)),
+            );
           }
         },
         builder: (context, state) {
           final loading = state is SourceLoading;
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          return Stack(
             children: [
               Padding(
-                padding: const EdgeInsets.all(16),
-                child: FilledButton.icon(
-                  onPressed: loading ? null : _uploadFile,
-                  icon: const Icon(Icons.add),
-                  label: Text(loading ? 'Uploading...' : 'Add File'),
-                ),
-              ),
-              Expanded(
+                padding: const EdgeInsets.only(bottom: 110),
                 child: Builder(
                   builder: (context) {
                     if (state is SourceLoading) {
                       return ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        padding: const EdgeInsets.fromLTRB(
+                          16,
+                          16,
+                          16,
+                          16,
+                        ),
                         itemBuilder: (context, index) =>
                             const ListTileSkeleton(),
                         separatorBuilder: (context, index) =>
@@ -131,7 +142,12 @@ class _SourceScreenState extends State<SourceScreen> {
                       }
 
                       return ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        padding: const EdgeInsets.fromLTRB(
+                          16,
+                          16,
+                          16,
+                          16,
+                        ),
                         itemCount: state.files.length,
                         separatorBuilder: (context, index) =>
                             const SizedBox(height: 8),
@@ -140,9 +156,11 @@ class _SourceScreenState extends State<SourceScreen> {
 
                           return Card(
                             child: ListTile(
-                              leading: const Icon(Icons.insert_drive_file),
+                              leading:
+                                  const Icon(Icons.insert_drive_file),
                               title: Text(file.name),
-                              contentPadding: const EdgeInsets.symmetric(
+                              contentPadding:
+                                  const EdgeInsets.symmetric(
                                 horizontal: 16,
                               ),
                             ),
@@ -153,6 +171,29 @@ class _SourceScreenState extends State<SourceScreen> {
 
                     return const SizedBox.shrink();
                   },
+                ),
+              ),
+
+              Positioned(
+                left: 20,
+                right: 20,
+                bottom: 32,
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 16,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                  ),
+                  onPressed: loading ? null : _uploadFile,
+                  icon: const Icon(Icons.add_rounded),
+                  label: Text(
+                    loading
+                        ? 'Uploading...'
+                        : 'Add File',
+                  ),
                 ),
               ),
             ],

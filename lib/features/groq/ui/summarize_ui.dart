@@ -11,17 +11,26 @@ class SummaryTab extends StatefulWidget {
   final String folderName;
   final String userId;
 
-  const SummaryTab({super.key, required this.folderName, required this.userId});
+  const SummaryTab({
+    super.key,
+    required this.folderName,
+    required this.userId,
+  });
 
   @override
   State<SummaryTab> createState() => _SummaryTabState();
 }
 
 class _SummaryTabState extends State<SummaryTab> {
+  bool _requestedGeneration = false;
+
   @override
   void initState() {
     super.initState();
-    _loadSummaries();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadSummaries();
+    });
   }
 
   @override
@@ -30,6 +39,7 @@ class _SummaryTabState extends State<SummaryTab> {
 
     if (oldWidget.userId != widget.userId ||
         oldWidget.folderName != widget.folderName) {
+      _requestedGeneration = false;
       _loadSummaries();
     }
   }
@@ -57,44 +67,52 @@ class _SummaryTabState extends State<SummaryTab> {
     return Scaffold(
       appBar: AppBar(
         leading: const AppBackButton(),
-        title: Text('Summary: ${widget.folderName}'),
-        actions: const [ThemeModeButton()],
+        title: Text(widget.folderName),
+        actions: const [
+          ThemeModeButton(),
+        ],
       ),
       body: SafeArea(
-        child: BlocBuilder<AiBloc, AiState>(
+        child: BlocConsumer<AiBloc, AiState>(
+          listener: (context, state) {
+            // Auto-generate if no summary exists
+            if (state is AiLoaded) {
+              if (state.summaries.isEmpty && !_requestedGeneration) {
+                _requestedGeneration = true;
+                _generateSummary();
+              }
+            }
+          },
           builder: (context, state) {
-            if (state is AiLoading) {
+            if (state is AiLoading || state is AiGenerating) {
               return const SummarySkeleton();
             }
 
-            if (state is AiGenerating) {
-              return _SummaryList(
-                summaries: state.summaries,
-                isGenerating: true,
-                onGenerate: null,
-              );
-            }
-
             if (state is AiLoaded) {
-              return _SummaryList(
-                summaries: state.summaries,
-                isGenerating: false,
-                onGenerate: _generateSummary,
+              if (state.summaries.isEmpty) {
+                return const EmptyStateWidget(
+                  icon: Icons.summarize,
+                  message: 'Generating summary...',
+                );
+              }
+
+              return _SummaryContent(
+                summary: state.summaries.first,
+                onResummarize: _generateSummary,
               );
             }
 
             if (state is AiError) {
               return _SummaryError(
                 message: state.message,
-                onRetry: _loadSummaries,
+                onRetry: () {
+                  _requestedGeneration = false;
+                  _loadSummaries();
+                },
               );
             }
 
-            return _SummaryList(
-              summaries: const [],
-              isGenerating: false,
-              onGenerate: _generateSummary,
-            );
+            return const SummarySkeleton();
           },
         ),
       ),
@@ -102,71 +120,71 @@ class _SummaryTabState extends State<SummaryTab> {
   }
 }
 
-class _SummaryList extends StatelessWidget {
-  final List<SummaryRecord> summaries;
-  final bool isGenerating;
-  final VoidCallback? onGenerate;
+class _SummaryContent extends StatelessWidget {
+  final SummaryRecord summary;
+  final VoidCallback onResummarize;
 
-  const _SummaryList({
-    required this.summaries,
-    required this.isGenerating,
-    required this.onGenerate,
+  const _SummaryContent({
+    required this.summary,
+    required this.onResummarize,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(20),
-          child: FilledButton.icon(
-            onPressed: onGenerate,
-            icon: const Icon(Icons.auto_awesome),
-            label: Text(isGenerating ? 'Generating...' : 'Generate Summary'),
-          ),
-        ),
-        if (isGenerating)
-          const Expanded(child: SummarySkeleton())
-        else if (summaries.isEmpty)
-          const Expanded(
-            child: EmptyStateWidget(
-              icon: Icons.summarize,
-              message: 'No saved summaries yet.',
-            ),
-          )
-        else
-          Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-              itemCount: summaries.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final summary = summaries[index];
-                return Card(
-                  child: ExpansionTile(
-                    tilePadding: const EdgeInsets.symmetric(horizontal: 16),
-                    title: Text('Summary ${summaries.length - index}'),
-                    subtitle: Text(_dateLabel(summary.createdAt)),
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                        child: Text(summary.summaryText),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-      ],
-    );
-  }
+    final theme = Theme.of(context);
 
-  String _dateLabel(DateTime? dateTime) {
-    if (dateTime == null) return 'Saved summary';
-    return '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-'
-        '${dateTime.day.toString().padLeft(2, '0')}';
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton.icon(
+              onPressed: onResummarize,
+              icon: const Icon(
+                Icons.auto_awesome,
+                size: 18,
+              ),
+              label: const Text(
+                'Re-Summarize',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 14,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          Card(
+            elevation: 1,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text(
+                summary.summaryText,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  height: 1.7,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -174,7 +192,10 @@ class _SummaryError extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
 
-  const _SummaryError({required this.message, required this.onRetry});
+  const _SummaryError({
+    required this.message,
+    required this.onRetry,
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -256,17 +256,26 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
 
       if (generationToken != _generationToken) return;
       emit(
-        QuizState(
-          status: QuizStatus.flashcard,
-          library: library,
-          session: QuizSession(
-            mode: QuizMode.flashcard,
-            flashcards: set.cards
-                .map((card) => Flashcard(front: card.front, back: card.back))
-                .toList(growable: false),
-          ),
-        ),
-      );
+  QuizState(
+    status: QuizStatus.flashcard,
+    library: library,
+    session: QuizSession(
+      mode: QuizMode.flashcard,
+      flashcards: set.cards
+          .map(
+            (card) => Flashcard(
+              front: card.front,
+              back: card.back,
+            ),
+          )
+          .toList(growable: false),
+    ),
+    currentIndex: 0,
+    score: 0,
+    showBack: false,
+    resultSaved: false,
+  ),
+);
     } catch (error) {
       if (generationToken != _generationToken) return;
       emit(

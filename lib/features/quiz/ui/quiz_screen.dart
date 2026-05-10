@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:studywise/features/quiz/bloc/quiz_bloc.dart';
 import 'package:studywise/features/quiz/model/quiz_models.dart';
 import 'package:studywise/shared/widgets/app_back_button.dart';
-import 'package:studywise/shared/widgets/empty_state_widget.dart';
 import 'package:studywise/shared/widgets/skeleton_loaders.dart';
 import 'package:studywise/shared/widgets/study_cards.dart';
 import 'package:studywise/shared/widgets/theme_mode_button.dart';
@@ -86,7 +85,7 @@ class _QuizTabState extends State<QuizTab> {
                   state.isInSession || state.status == QuizStatus.generating
                   ? AppBackButton(onPressed: _backToLibrary)
                   : const AppBackButton(),
-              title: Text('Quiz: ${widget.folderName}'),
+              title: Text('${widget.folderName}'),
               actions: const [ThemeModeButton()],
             ),
             body: SafeArea(child: _buildBody(state)),
@@ -150,70 +149,107 @@ class _QuizLibrary extends StatelessWidget {
 
     if (library == null) return const QuizSkeleton();
 
+    final isCompletelyEmpty =
+        library.flashcardSets.isEmpty && library.quizzes.isEmpty;
+
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
+        Text(
+          'Generate new:',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        const SizedBox(height: 12),
         Row(
           children: [
             Expanded(
               child: FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                ),
                 onPressed: library.hasMaterials ? onGenerateQuiz : null,
                 icon: const Icon(Icons.quiz),
-                label: const Text('New Quiz'),
+                label: const Text('Multiple Choice'),
               ),
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: OutlinedButton.icon(
+              child: FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                ),
                 onPressed: library.hasMaterials ? onGenerateFlashcards : null,
                 icon: const Icon(Icons.style),
-                label: const Text('New Cards'),
+                label: const Text('FlashCard'),
               ),
             ),
           ],
         ),
+
         const SizedBox(height: 24),
-        Text('Flashcards', style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 10),
-        if (library.flashcardSets.isEmpty)
-          const EmptyStateWidget(
-            icon: Icons.style,
-            message: 'No saved flashcards yet.',
-          )
-        else
-          for (var i = 0; i < library.flashcardSets.length; i++) ...[
-            FlashcardCard(
-              title: 'Flashcard Set ${library.flashcardSets.length - i}',
-              subtitle: '${library.flashcardSets[i].cards.length} cards',
-              onTap: () {
-                context.read<QuizBloc>().add(
-                  SavedFlashcardSetOpened(library.flashcardSets[i]),
-                );
-              },
+
+        if (isCompletelyEmpty) ...[
+          const SizedBox(height: 30),
+          Center(
+            child: Column(
+              children: [
+                Icon(
+                  Icons.auto_awesome,
+                  size: 44,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'No quizzes or flashcards yet',
+                  style: Theme.of(context).textTheme.titleMedium,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Generate your first set above',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-          ],
-        const SizedBox(height: 24),
-        Text('Quizzes', style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 10),
-        if (library.quizzes.isEmpty)
-          const EmptyStateWidget(
-            icon: Icons.quiz_outlined,
-            message: 'No saved quizzes yet.',
-          )
-        else
-          for (var i = 0; i < library.quizzes.length; i++) ...[
-            QuizCard(
-              title: 'Quiz Attempt Set ${library.quizzes.length - i}',
-              subtitle: _dateLabel(library.quizzes[i].createdAt),
-              onTap: () {
-                context.read<QuizBloc>().add(
-                  SavedQuizOpened(library.quizzes[i].id),
-                );
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
+          ),
+        ] else ...[
+
+          if (library.flashcardSets.isEmpty)
+            const SizedBox()
+          else
+            for (var i = 0; i < library.flashcardSets.length; i++) ...[
+              FlashcardCard(
+                title: 'Flashcard Set ${library.flashcardSets.length - i}',
+                subtitle: '${library.flashcardSets[i].cards.length} cards',
+                onTap: () {
+                  context.read<QuizBloc>().add(
+                        SavedFlashcardSetOpened(
+                            library.flashcardSets[i]),
+                      );
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+
+          const SizedBox(height: 24),
+
+          if (library.quizzes.isEmpty)
+            const SizedBox()
+          else
+            for (var i = 0; i < library.quizzes.length; i++) ...[
+              QuizCard(
+                title: 'Multiple Choice Set ${library.quizzes.length - i}',
+                subtitle: _dateLabel(library.quizzes[i].createdAt),
+                onTap: () {
+                  context.read<QuizBloc>().add(
+                        SavedQuizOpened(library.quizzes[i].id),
+                      );
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+        ],
       ],
     );
   }

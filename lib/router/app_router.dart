@@ -9,7 +9,7 @@ import '../features/auth/ui/auth_screen.dart';
 import '../features/study_material/ui/home_screen.dart';
 import '../features/study_material/ui/source_screen.dart';
 import '../features/study_material/ui/main_nav_screen.dart';
-import '../features/study_material/ui/quiz_screen.dart';
+import '../features/quiz/ui/quiz_screen.dart';
 import 'go_router_refresh_stream.dart';
 
 final GoRouter router = GoRouter(

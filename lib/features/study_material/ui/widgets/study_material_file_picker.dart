@@ -4,11 +4,22 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 enum StudyMaterialUploadType {
-  pdf(label: 'Upload PDF', icon: Icons.picture_as_pdf, extensions: ['pdf']),
+  pdf(
+    label: 'PDF',
+    icon: Icons.picture_as_pdf_rounded,
+    extensions: ['pdf'],
+  ),
+
   image(
-    label: 'Upload Image',
-    icon: Icons.image,
+    label: 'Image',
+    icon: Icons.image_rounded,
     extensions: ['jpg', 'jpeg', 'png'],
+  ),
+
+  camera(
+    label: 'Camera',
+    icon: Icons.photo_camera_rounded,
+    extensions: [],
   );
 
   const StudyMaterialUploadType({
@@ -43,24 +54,85 @@ Future<StudyMaterialPickedFile?> pickStudyMaterialFile(
     builder: (context) {
       return SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
                 'Choose file type',
-                style: Theme.of(context).textTheme.titleMedium,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
               ),
-              const SizedBox(height: 12),
-              for (final type in StudyMaterialUploadType.values) ...[
-                OutlinedButton.icon(
-                  onPressed: () => Navigator.pop(context, type),
-                  icon: Icon(type.icon),
-                  label: Text(type.label),
-                ),
-                const SizedBox(height: 8),
-              ],
+
+              const SizedBox(height: 16),
+
+              Row(
+  children: [
+    Expanded(
+      flex: 2,
+      child: OutlinedButton.icon(
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        onPressed: () => Navigator.pop(
+          context,
+          StudyMaterialUploadType.pdf,
+        ),
+        icon: const Icon(Icons.picture_as_pdf_rounded),
+        label: const Text('PDF'),
+      ),
+    ),
+
+    const SizedBox(width: 10),
+
+    Expanded(
+      flex: 2,
+      child: OutlinedButton.icon(
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        onPressed: () => Navigator.pop(
+          context,
+          StudyMaterialUploadType.image,
+        ),
+        icon: const Icon(Icons.image_rounded),
+        label: const Text('Image'),
+      ),
+    ),
+
+    const SizedBox(width: 10),
+
+    Expanded(
+      flex: 1,
+      child: FilledButton(
+        style: FilledButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        onPressed: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Camera support coming soon.',
+              ),
+            ),
+          );
+        },
+        child: const Icon(Icons.photo_camera_rounded),
+      ),
+    ),
+  ],
+),
             ],
           ),
         ),
@@ -80,13 +152,16 @@ Future<StudyMaterialPickedFile?> pickStudyMaterialFile(
 
   final file = result.files.first;
   final bytes = file.bytes;
+
   if (bytes == null) {
     throw Exception('Could not read the selected file.');
   }
 
   return StudyMaterialPickedFile(
     name: file.name,
-    fileType: file.extension?.toLowerCase() ?? uploadType.extensions.first,
+    fileType:
+        file.extension?.toLowerCase() ??
+        uploadType.extensions.first,
     bytes: bytes,
   );
 }

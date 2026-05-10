@@ -66,14 +66,23 @@ class FlashcardRecord {
   });
 
   factory FlashcardRecord.fromMap(Map<String, dynamic> map) {
-    return FlashcardRecord(
-      id: map['id'].toString(),
-      materialId: map['material_id']?.toString() ?? '',
-      front: map['front']?.toString() ?? '',
-      back: map['back']?.toString() ?? '',
-      createdAt: DateTime.tryParse(map['created_at']?.toString() ?? ''),
-    );
-  }
+  return FlashcardRecord(
+    id: map['id'].toString(),
+    materialId: map['material_id']?.toString() ?? '',
+
+    front: map['front']?.toString() ??
+        map['question']?.toString() ??
+        '',
+
+    back: map['back']?.toString() ??
+        map['answer']?.toString() ??
+        '',
+
+    createdAt: DateTime.tryParse(
+      map['created_at']?.toString() ?? '',
+    ),
+  );
+}
 }
 
 class FlashcardSetRecord {

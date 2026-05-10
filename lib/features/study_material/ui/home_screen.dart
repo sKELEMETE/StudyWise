@@ -32,6 +32,21 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // 🎨 Stable color per topic name
+  Color getColorFromName(String name) {
+    final colors = Colors.primaries;
+    final hash = name.codeUnits.fold(0, (a, b) => a + b);
+    return colors[hash % colors.length].shade100;
+  }
+
+  // 🎯 Decide readable color (black or white)
+  Color getTextColor(Color background) {
+    return ThemeData.estimateBrightnessForColor(background) ==
+            Brightness.dark
+        ? Colors.white
+        : Colors.black87;
+  }
+
   Future<void> _showCreateFolderDialog(
     BuildContext rootContext,
     String userId,
@@ -62,26 +77,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 16),
                     OutlinedButton.icon(
                       onPressed: () async {
-                        try {
-                          final pickedFile = await pickStudyMaterialFile(ctx);
-                          if (pickedFile == null) return;
+                        final pickedFile =
+                            await pickStudyMaterialFile(ctx);
 
-                          setStateDialog(() {
-                            _selectedFile = pickedFile;
-                          });
-                        } catch (error) {
-                          if (!rootContext.mounted) return;
-                          ScaffoldMessenger.of(rootContext).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                error.toString().replaceFirst(
-                                  'Exception: ',
-                                  '',
-                                ),
-                              ),
-                            ),
-                          );
-                        }
+                        if (pickedFile == null) return;
+
+                        setStateDialog(() {
+                          _selectedFile = pickedFile;
+                        });
                       },
                       icon: const Icon(Icons.upload_file),
                       label: const Text('Choose File'),
@@ -98,11 +101,27 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: const Text('Cancel'),
                   ),
                   TextButton(
+                    style: TextButton.styleFrom(
+                      backgroundColor:
+                          Theme.of(context).colorScheme.primary,
+                      foregroundColor:
+                          Theme.of(context).colorScheme.onPrimary,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
                     onPressed: () {
-                      final folderName = _folderController.text.trim();
+                      final folderName =
+                          _folderController.text.trim();
 
-                      if (folderName.isEmpty || _selectedFile == null) {
-                        ScaffoldMessenger.of(rootContext).showSnackBar(
+                      if (folderName.isEmpty ||
+                          _selectedFile == null) {
+                        ScaffoldMessenger.of(rootContext)
+                            .showSnackBar(
                           const SnackBar(
                             content: Text(
                               'Enter a topic name and choose a file.',
@@ -143,13 +162,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Home'),
+        title: const Text('StudyWise'),
         actions: [
           const ThemeModeButton(),
           IconButton(
             tooltip: 'Sign out',
             onPressed: () async {
               await Supabase.instance.client.auth.signOut();
+
               if (context.mounted) {
                 context.read<AppStateCubit>().clearSelection();
               }
@@ -161,100 +181,134 @@ class _HomeScreenState extends State<HomeScreen> {
       body: BlocConsumer<TopicBloc, TopicState>(
         listener: (context, state) {
           if (state is TopicActionSuccess) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text(state.message)));
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(state.message)),
+            );
           }
 
           if (state is TopicError) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text(state.message)));
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(state.message)),
+            );
           }
         },
         builder: (context, state) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          return Stack(
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                padding: const EdgeInsets.only(bottom: 90),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Welcome back',
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      user!.email ?? '',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    Expanded(
+                      child: Builder(
+                        builder: (context) {
+                          if (state is TopicLoading) {
+                            return ListView.separated(
+                              padding: const EdgeInsets.fromLTRB(
+                                16,
+                                0,
+                                16,
+                                16,
+                              ),
+                              itemBuilder: (_, __) =>
+                                  const ListTileSkeleton(),
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 8),
+                              itemCount: 4,
+                            );
+                          }
+
+                          if (state is TopicLoaded) {
+                            if (state.topics.isEmpty) {
+                              return const EmptyStateWidget(
+                                icon: Icons.folder_open,
+                                message:
+                                    'Create a topic to start studying.',
+                              );
+                            }
+
+                            return ListView.separated(
+                              padding: const EdgeInsets.fromLTRB(
+                                16,
+                                0,
+                                16,
+                                16,
+                              ),
+                              itemCount: state.topics.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 10),
+                              itemBuilder: (context, index) {
+                                final folder = state.topics[index];
+                                final bgColor =
+                                    getColorFromName(folder.name);
+                                final textColor =
+                                    getTextColor(bgColor);
+
+                                return Container(
+                                  decoration: BoxDecoration(
+                                    color: bgColor,
+                                    borderRadius:
+                                        BorderRadius.circular(12),
+                                  ),
+                                  child: ListTile(
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(12),
+                                    ),
+
+                                    leading: Icon(
+                                      Icons.folder,
+                                      color: textColor,
+                                    ),
+
+                                    title: Text(
+                                      folder.name,
+                                      style: TextStyle(
+                                        color: textColor,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+
+                                    trailing: Icon(
+                                      Icons.chevron_right,
+                                      color: textColor,
+                                    ),
+
+                                    onTap: () {
+                                      context
+                                          .read<AppStateCubit>()
+                                          .selectFolder(
+                                            userId: user!.id,
+                                            folderName: folder.name,
+                                          );
+
+                                      context.push('/source');
+                                    },
+                                  ),
+                                );
+                              },
+                            );
+                          }
+
+                          return const Center(
+                            child: Text('Load topics'),
+                          );
+                        },
                       ),
                     ),
                   ],
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+
+              Positioned(
+                left: 20,
+                right: 20,
+                bottom: 50,
                 child: FilledButton.icon(
-                  onPressed: () => _showCreateFolderDialog(context, user!.id),
+                  onPressed: () =>
+                      _showCreateFolderDialog(context, user!.id),
                   icon: const Icon(Icons.create_new_folder),
-                  label: const Text('Create Topic'),
-                ),
-              ),
-              Expanded(
-                child: Builder(
-                  builder: (context) {
-                    if (state is TopicLoading) {
-                      return ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                        itemBuilder: (context, index) =>
-                            const ListTileSkeleton(),
-                        separatorBuilder: (context, index) =>
-                            const SizedBox(height: 8),
-                        itemCount: 4,
-                      );
-                    }
-
-                    if (state is TopicLoaded) {
-                      if (state.topics.isEmpty) {
-                        return const EmptyStateWidget(
-                          icon: Icons.folder_open,
-                          message: 'Create a topic to start studying.',
-                        );
-                      }
-
-                      return ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                        itemCount: state.topics.length,
-                        separatorBuilder: (context, index) =>
-                            const SizedBox(height: 8),
-                        itemBuilder: (context, index) {
-                          final folder = state.topics[index];
-
-                          return Card(
-                            child: ListTile(
-                              leading: const Icon(Icons.folder),
-                              title: Text(folder.name),
-                              trailing: const Icon(Icons.chevron_right),
-                              onTap: () {
-                                context.read<AppStateCubit>().selectFolder(
-                                  userId: user!.id,
-                                  folderName: folder.name,
-                                );
-
-                                context.push('/source');
-                              },
-                            ),
-                          );
-                        },
-                      );
-                    }
-
-                    return const Center(child: Text('Load topics'));
-                  },
+                  label: const Text('New Topic'),
                 ),
               ),
             ],
