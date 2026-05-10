@@ -7,7 +7,7 @@ const corsHeaders = {
 }
 
 const maxFileSizeBytes = 15 * 1024 * 1024
-const allowedExtensions = new Set(["jpg", "jpeg", "png", "pdf", "txt", "md"])
+const allowedExtensions = new Set(["jpg", "jpeg", "png", "pdf"])
 
 function getMimeType(extension: string): string {
   const ext = extension.toLowerCase()
@@ -15,8 +15,6 @@ function getMimeType(extension: string): string {
   if (ext === "jpg" || ext === "jpeg") return "image/jpeg"
   if (ext === "png") return "image/png"
   if (ext === "pdf") return "application/pdf"
-  if (ext === "md") return "text/markdown"
-  if (ext === "txt") return "text/plain"
   return "text/plain"
 }
 
@@ -107,15 +105,10 @@ serve(async (req) => {
     const folderName = requireSafeFolderName(formData.get("folderName"))
     const fileName = requireSafeFileName(formData.get("fileName"))
     const fileType = requireAllowedExtension(formData.get("fileType"))
-    const extractedTextEntry = formData.get("extractedText")
-    const extractedText = typeof extractedTextEntry === "string"
-      ? extractedTextEntry.trim()
-      : ""
 
     if (!(file instanceof File)) throw new Error("Missing file")
     if (file.size === 0) throw new Error("Missing file")
     if (file.size > maxFileSizeBytes) throw new Error("File is too large")
-    if (!extractedText) throw new Error("No readable text found")
 
     const filePath = `${user.id}/${folderName}/${fileName}`
     const arrayBuffer = await file.arrayBuffer()
@@ -129,25 +122,7 @@ serve(async (req) => {
 
     if (uploadError) throw uploadError
 
-    await supabase
-      .from("study_materials")
-      .delete()
-      .eq("file_path", filePath)
-      .eq("student_id", user.id)
-
-    const { data, error: dbError } = await supabase
-      .from("study_materials")
-      .insert({
-        file_type: fileType,
-        raw_text: extractedText,
-        file_path: filePath,
-        student_id: user.id,
-      })
-      .select()
-
-    if (dbError) throw dbError
-
-    return new Response(JSON.stringify(data), {
+    return new Response(JSON.stringify({ filePath }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     })

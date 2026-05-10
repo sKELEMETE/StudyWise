@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
@@ -35,8 +34,9 @@ class ImageLocalDataSource {
   static Uint8List _resizeImage(Uint8List bytes) {
     final image = img.decodeImage(bytes);
     if (image == null) return bytes;
-    final resized =
-        image.width > 1400 ? img.copyResize(image, width: 1400) : image;
+    final resized = image.width > 1400
+        ? img.copyResize(image, width: 1400)
+        : image;
     return Uint8List.fromList(img.encodeJpg(resized, quality: 80));
   }
 

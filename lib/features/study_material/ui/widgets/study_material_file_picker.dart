@@ -4,20 +4,11 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 enum StudyMaterialUploadType {
-  pdf(
-    label: 'Upload PDF',
-    icon: Icons.picture_as_pdf,
-    extensions: ['pdf'],
-  ),
+  pdf(label: 'Upload PDF', icon: Icons.picture_as_pdf, extensions: ['pdf']),
   image(
     label: 'Upload Image',
     icon: Icons.image,
     extensions: ['jpg', 'jpeg', 'png'],
-  ),
-  text(
-    label: 'Upload Text',
-    icon: Icons.article,
-    extensions: ['txt', 'md'],
   );
 
   const StudyMaterialUploadType({

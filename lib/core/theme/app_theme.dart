@@ -9,9 +9,9 @@ class AppTheme {
       brightness: Brightness.light,
     );
 
-    return _base(colorScheme).copyWith(
-      scaffoldBackgroundColor: const Color(0xFFFFFBF6),
-    );
+    return _base(
+      colorScheme,
+    ).copyWith(scaffoldBackgroundColor: const Color(0xFFFFFBF6));
   }
 
   static ThemeData dark() {
@@ -20,9 +20,9 @@ class AppTheme {
       brightness: Brightness.dark,
     );
 
-    return _base(colorScheme).copyWith(
-      scaffoldBackgroundColor: const Color(0xFF17120F),
-    );
+    return _base(
+      colorScheme,
+    ).copyWith(scaffoldBackgroundColor: const Color(0xFF17120F));
   }
 
   static ThemeData _base(ColorScheme colorScheme) {

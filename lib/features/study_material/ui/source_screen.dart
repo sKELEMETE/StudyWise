@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:studywise/features/study_material/bloc/source_bloc.dart';
 import 'package:studywise/features/study_material/ui/widgets/study_material_file_picker.dart';
+import 'package:studywise/shared/widgets/app_back_button.dart';
+import 'package:studywise/shared/widgets/empty_state_widget.dart';
+import 'package:studywise/shared/widgets/skeleton_loaders.dart';
 import 'package:studywise/shared/widgets/theme_mode_button.dart';
 
 class SourceScreen extends StatefulWidget {
@@ -38,11 +41,8 @@ class _SourceScreenState extends State<SourceScreen> {
 
   void _loadFiles() {
     context.read<SourceBloc>().add(
-          LoadSourceRequested(
-            userId: widget.userId,
-            folderName: widget.folderName,
-          ),
-        );
+      LoadSourceRequested(userId: widget.userId, folderName: widget.folderName),
+    );
   }
 
   Future<void> _uploadFile() async {
@@ -62,35 +62,36 @@ class _SourceScreenState extends State<SourceScreen> {
     if (!mounted || file == null) return;
 
     context.read<SourceBloc>().add(
-          UploadFileRequested(
-            userId: widget.userId,
-            folderName: widget.folderName,
-            fileName: file.name,
-            fileType: file.fileType,
-            fileBytes: file.bytes,
-          ),
-        );
+      UploadFileRequested(
+        userId: widget.userId,
+        folderName: widget.folderName,
+        fileName: file.name,
+        fileType: file.fileType,
+        fileBytes: file.bytes,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: const AppBackButton(),
         title: Text(widget.folderName),
         actions: const [ThemeModeButton()],
       ),
       body: BlocConsumer<SourceBloc, SourceState>(
         listener: (context, state) {
           if (state is SourceActionSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message)),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(state.message)));
           }
 
           if (state is SourceError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message)),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(state.message)));
           }
         },
         builder: (context, state) {
@@ -109,29 +110,31 @@ class _SourceScreenState extends State<SourceScreen> {
               ),
               Expanded(
                 child: Builder(
-                  builder: (_) {
+                  builder: (context) {
                     if (state is SourceLoading) {
-                      return const Center(child: CircularProgressIndicator());
+                      return ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        itemBuilder: (context, index) =>
+                            const ListTileSkeleton(),
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 8),
+                        itemCount: 4,
+                      );
                     }
 
                     if (state is SourceLoaded) {
                       if (state.files.isEmpty) {
-                        return Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Text(
-                              'No files in this topic yet.',
-                              style: Theme.of(context).textTheme.bodyLarge,
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
+                        return const EmptyStateWidget(
+                          icon: Icons.insert_drive_file_outlined,
+                          message: 'No files in this topic yet.',
                         );
                       }
 
                       return ListView.separated(
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                         itemCount: state.files.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 8),
                         itemBuilder: (context, index) {
                           final file = state.files[index];
 
@@ -139,8 +142,9 @@ class _SourceScreenState extends State<SourceScreen> {
                             child: ListTile(
                               leading: const Icon(Icons.insert_drive_file),
                               title: Text(file.name),
-                              contentPadding:
-                                  const EdgeInsets.symmetric(horizontal: 16),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
                             ),
                           );
                         },

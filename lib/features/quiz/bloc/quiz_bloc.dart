@@ -2,10 +2,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:studywise/core/error/friendly_error.dart';
 import 'package:studywise/features/quiz/model/quiz_models.dart';
 import 'package:studywise/features/quiz/usecase/generate_quiz_usecase.dart';
+import 'package:studywise/features/study_material/model/study_content_models.dart';
 
 enum QuizStatus {
   initial,
   loading,
+  library,
+  generating,
   multipleChoice,
   flashcard,
   result,
@@ -14,16 +17,37 @@ enum QuizStatus {
 
 abstract class QuizEvent {}
 
+class QuizLibraryRequested extends QuizEvent {
+  final String userId;
+  final String folderName;
+
+  QuizLibraryRequested({required this.userId, required this.folderName});
+}
+
 class QuizGenerateRequested extends QuizEvent {
   final String userId;
   final String folderName;
-  final QuizMode mode;
 
-  QuizGenerateRequested({
-    required this.userId,
-    required this.folderName,
-    required this.mode,
-  });
+  QuizGenerateRequested({required this.userId, required this.folderName});
+}
+
+class FlashcardsGenerateRequested extends QuizEvent {
+  final String userId;
+  final String folderName;
+
+  FlashcardsGenerateRequested({required this.userId, required this.folderName});
+}
+
+class SavedQuizOpened extends QuizEvent {
+  final String quizId;
+
+  SavedQuizOpened(this.quizId);
+}
+
+class SavedFlashcardSetOpened extends QuizEvent {
+  final FlashcardSetRecord set;
+
+  SavedFlashcardSetOpened(this.set);
 }
 
 class QuizAnswerSelected extends QuizEvent {
@@ -40,28 +64,34 @@ class QuizFlashcardFlipped extends QuizEvent {}
 
 class QuizFlashcardNextRequested extends QuizEvent {}
 
-class QuizResetRequested extends QuizEvent {}
+class QuizBackToLibraryRequested extends QuizEvent {}
 
 class QuizState {
   final QuizStatus status;
-  final QuizMode? mode;
+  final QuizLibraryData? library;
   final QuizSession? session;
+  final String? activeQuizId;
+  final List<QuizResultRecord> quizHistory;
   final int currentIndex;
   final int score;
   final int? selectedAnswerIndex;
   final bool showHint;
   final bool showBack;
+  final bool resultSaved;
   final String? message;
 
   const QuizState({
     required this.status,
-    this.mode,
+    this.library,
     this.session,
+    this.activeQuizId,
+    this.quizHistory = const [],
     this.currentIndex = 0,
     this.score = 0,
     this.selectedAnswerIndex,
     this.showHint = false,
     this.showBack = false,
+    this.resultSaved = false,
     this.message,
   });
 
@@ -71,22 +101,33 @@ class QuizState {
 
   bool get isLastItem => currentIndex >= totalItems - 1;
 
+  bool get isInSession {
+    return status == QuizStatus.multipleChoice ||
+        status == QuizStatus.flashcard ||
+        status == QuizStatus.result;
+  }
+
   QuizState copyWith({
     QuizStatus? status,
-    QuizMode? mode,
+    QuizLibraryData? library,
     QuizSession? session,
+    String? activeQuizId,
+    List<QuizResultRecord>? quizHistory,
     int? currentIndex,
     int? score,
     int? selectedAnswerIndex,
     bool clearSelectedAnswer = false,
     bool? showHint,
     bool? showBack,
+    bool? resultSaved,
     String? message,
   }) {
     return QuizState(
       status: status ?? this.status,
-      mode: mode ?? this.mode,
+      library: library ?? this.library,
       session: session ?? this.session,
+      activeQuizId: activeQuizId ?? this.activeQuizId,
+      quizHistory: quizHistory ?? this.quizHistory,
       currentIndex: currentIndex ?? this.currentIndex,
       score: score ?? this.score,
       selectedAnswerIndex: clearSelectedAnswer
@@ -94,66 +135,204 @@ class QuizState {
           : selectedAnswerIndex ?? this.selectedAnswerIndex,
       showHint: showHint ?? this.showHint,
       showBack: showBack ?? this.showBack,
+      resultSaved: resultSaved ?? this.resultSaved,
       message: message,
     );
   }
 }
 
 class QuizBloc extends Bloc<QuizEvent, QuizState> {
+  final GetQuizLibraryUseCase getQuizLibraryUseCase;
   final GenerateQuizUseCase generateQuizUseCase;
-  int _generationToken = 0;
+  final GenerateFlashcardsUseCase generateFlashcardsUseCase;
+  final GetSavedQuizSessionUseCase getSavedQuizSessionUseCase;
+  final SaveQuizResultUseCase saveQuizResultUseCase;
+  final GetQuizHistoryUseCase getQuizHistoryUseCase;
 
-  QuizBloc({required this.generateQuizUseCase})
-      : super(const QuizState.initial()) {
-    on<QuizGenerateRequested>(_onGenerateRequested);
+  int _generationToken = 0;
+  String? _userId;
+
+  QuizBloc({
+    required this.getQuizLibraryUseCase,
+    required this.generateQuizUseCase,
+    required this.generateFlashcardsUseCase,
+    required this.getSavedQuizSessionUseCase,
+    required this.saveQuizResultUseCase,
+    required this.getQuizHistoryUseCase,
+  }) : super(const QuizState.initial()) {
+    on<QuizLibraryRequested>(_onLibraryRequested);
+    on<QuizGenerateRequested>(_onQuizGenerateRequested);
+    on<FlashcardsGenerateRequested>(_onFlashcardsGenerateRequested);
+    on<SavedQuizOpened>(_onSavedQuizOpened);
+    on<SavedFlashcardSetOpened>(_onSavedFlashcardSetOpened);
     on<QuizAnswerSelected>(_onAnswerSelected);
     on<QuizNextRequested>(_onNextRequested);
     on<QuizHintToggled>(_onHintToggled);
     on<QuizFlashcardFlipped>(_onFlashcardFlipped);
     on<QuizFlashcardNextRequested>(_onFlashcardNextRequested);
-    on<QuizResetRequested>(_onResetRequested);
+    on<QuizBackToLibraryRequested>(_onBackToLibraryRequested);
   }
 
-  Future<void> _onGenerateRequested(
-    QuizGenerateRequested event,
+  Future<void> _onLibraryRequested(
+    QuizLibraryRequested event,
     Emitter<QuizState> emit,
   ) async {
+    _userId = event.userId;
     final generationToken = ++_generationToken;
-    emit(QuizState(status: QuizStatus.loading, mode: event.mode));
+    emit(QuizState(status: QuizStatus.loading, library: state.library));
 
     try {
-      final session = await generateQuizUseCase(
-        userId: event.userId,
+      final library = await getQuizLibraryUseCase(
         folderName: event.folderName,
-        mode: event.mode,
       );
 
       if (generationToken != _generationToken) return;
-      emit(
-        QuizState(
-          status: event.mode == QuizMode.multipleChoice
-              ? QuizStatus.multipleChoice
-              : QuizStatus.flashcard,
-          mode: event.mode,
-          session: session,
-        ),
-      );
+      emit(QuizState(status: QuizStatus.library, library: library));
     } catch (error) {
       if (generationToken != _generationToken) return;
       emit(
         QuizState(
           status: QuizStatus.failure,
-          mode: event.mode,
+          library: state.library,
           message: friendlyErrorMessage(error),
         ),
       );
     }
   }
 
-  void _onAnswerSelected(
-    QuizAnswerSelected event,
+  Future<void> _onQuizGenerateRequested(
+    QuizGenerateRequested event,
+    Emitter<QuizState> emit,
+  ) async {
+    _userId = event.userId;
+    final generationToken = ++_generationToken;
+    emit(state.copyWith(status: QuizStatus.generating));
+
+    try {
+      final activeQuiz = await generateQuizUseCase(
+        folderName: event.folderName,
+      );
+      final library = await getQuizLibraryUseCase(
+        folderName: event.folderName,
+      );
+      final history = await getQuizHistoryUseCase(activeQuiz.quizId);
+
+      if (generationToken != _generationToken) return;
+      emit(
+        QuizState(
+          status: QuizStatus.multipleChoice,
+          library: library,
+          session: activeQuiz.session,
+          activeQuizId: activeQuiz.quizId,
+          quizHistory: history,
+        ),
+      );
+    } catch (error) {
+      if (generationToken != _generationToken) return;
+      emit(
+        state.copyWith(
+          status: QuizStatus.failure,
+          message: friendlyErrorMessage(error),
+        ),
+      );
+    }
+  }
+
+  Future<void> _onFlashcardsGenerateRequested(
+    FlashcardsGenerateRequested event,
+    Emitter<QuizState> emit,
+  ) async {
+    _userId = event.userId;
+    final generationToken = ++_generationToken;
+    emit(state.copyWith(status: QuizStatus.generating));
+
+    try {
+      final set = await generateFlashcardsUseCase(
+        folderName: event.folderName,
+      );
+      final library = await getQuizLibraryUseCase(
+        folderName: event.folderName,
+      );
+
+      if (generationToken != _generationToken) return;
+      emit(
+        QuizState(
+          status: QuizStatus.flashcard,
+          library: library,
+          session: QuizSession(
+            mode: QuizMode.flashcard,
+            flashcards: set.cards
+                .map((card) => Flashcard(front: card.front, back: card.back))
+                .toList(growable: false),
+          ),
+        ),
+      );
+    } catch (error) {
+      if (generationToken != _generationToken) return;
+      emit(
+        state.copyWith(
+          status: QuizStatus.failure,
+          message: friendlyErrorMessage(error),
+        ),
+      );
+    }
+  }
+
+  Future<void> _onSavedQuizOpened(
+    SavedQuizOpened event,
+    Emitter<QuizState> emit,
+  ) async {
+    emit(state.copyWith(status: QuizStatus.loading));
+
+    try {
+      final session = await getSavedQuizSessionUseCase(event.quizId);
+      final history = await getQuizHistoryUseCase(event.quizId);
+
+      emit(
+        state.copyWith(
+          status: QuizStatus.multipleChoice,
+          session: session,
+          activeQuizId: event.quizId,
+          quizHistory: history,
+          currentIndex: 0,
+          score: 0,
+          clearSelectedAnswer: true,
+          showHint: false,
+          resultSaved: false,
+        ),
+      );
+    } catch (error) {
+      emit(
+        state.copyWith(
+          status: QuizStatus.failure,
+          message: friendlyErrorMessage(error),
+        ),
+      );
+    }
+  }
+
+  void _onSavedFlashcardSetOpened(
+    SavedFlashcardSetOpened event,
     Emitter<QuizState> emit,
   ) {
+    emit(
+      state.copyWith(
+        status: QuizStatus.flashcard,
+        session: QuizSession(
+          mode: QuizMode.flashcard,
+          flashcards: event.set.cards
+              .map((card) => Flashcard(front: card.front, back: card.back))
+              .toList(growable: false),
+        ),
+        currentIndex: 0,
+        score: 0,
+        showBack: false,
+        resultSaved: true,
+      ),
+    );
+  }
+
+  void _onAnswerSelected(QuizAnswerSelected event, Emitter<QuizState> emit) {
     if (state.status != QuizStatus.multipleChoice ||
         state.selectedAnswerIndex != null ||
         state.session == null) {
@@ -171,17 +350,17 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
     );
   }
 
-  void _onNextRequested(
+  Future<void> _onNextRequested(
     QuizNextRequested event,
     Emitter<QuizState> emit,
-  ) {
+  ) async {
     if (state.status != QuizStatus.multipleChoice ||
         state.selectedAnswerIndex == null) {
       return;
     }
 
     if (state.isLastItem) {
-      emit(state.copyWith(status: QuizStatus.result));
+      await _saveResultIfNeeded(emit);
       return;
     }
 
@@ -194,10 +373,7 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
     );
   }
 
-  void _onHintToggled(
-    QuizHintToggled event,
-    Emitter<QuizState> emit,
-  ) {
+  void _onHintToggled(QuizHintToggled event, Emitter<QuizState> emit) {
     if (state.status != QuizStatus.multipleChoice) return;
     emit(state.copyWith(showHint: !state.showHint));
   }
@@ -221,6 +397,7 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
         state.copyWith(
           status: QuizStatus.result,
           score: state.totalItems,
+          resultSaved: true,
         ),
       );
       return;
@@ -235,11 +412,48 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
     );
   }
 
-  void _onResetRequested(
-    QuizResetRequested event,
+  void _onBackToLibraryRequested(
+    QuizBackToLibraryRequested event,
     Emitter<QuizState> emit,
   ) {
     _generationToken++;
-    emit(const QuizState.initial());
+    emit(QuizState(status: QuizStatus.library, library: state.library));
+  }
+
+  Future<void> _saveResultIfNeeded(Emitter<QuizState> emit) async {
+    if (state.resultSaved) {
+      emit(state.copyWith(status: QuizStatus.result));
+      return;
+    }
+
+    final quizId = state.activeQuizId;
+    final studentId = _userId;
+
+    if (quizId == null || studentId == null) {
+      emit(state.copyWith(status: QuizStatus.result, resultSaved: true));
+      return;
+    }
+
+    try {
+      await saveQuizResultUseCase(
+        quizId: quizId,
+        score: state.score,
+      );
+      final history = await getQuizHistoryUseCase(quizId);
+      emit(
+        state.copyWith(
+          status: QuizStatus.result,
+          resultSaved: true,
+          quizHistory: history,
+        ),
+      );
+    } catch (error) {
+      emit(
+        state.copyWith(
+          status: QuizStatus.failure,
+          message: friendlyErrorMessage(error),
+        ),
+      );
+    }
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:studywise/shared/widgets/skeleton_loaders.dart';
 import 'package:studywise/shared/widgets/theme_mode_button.dart';
 import '../bloc/auth_bloc.dart';
 
@@ -31,13 +32,13 @@ class _AuthScreenState extends State<AuthScreen> {
       body: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is AuthFailure) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.error)),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(state.error)));
           } else if (state is AuthSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message)),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(state.message)));
           }
         },
         builder: (context, state) {
@@ -52,10 +53,9 @@ class _AuthScreenState extends State<AuthScreen> {
                   Text(
                     'StudyWise',
                     textAlign: TextAlign.center,
-                    style: Theme.of(context)
-                        .textTheme
-                        .headlineMedium
-                        ?.copyWith(fontWeight: FontWeight.w800),
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   const SizedBox(height: 28),
                   TextField(
@@ -78,25 +78,25 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                   const SizedBox(height: 20),
                   if (isLoading)
-                    const Center(child: CircularProgressIndicator())
+                    const SkeletonBox(height: 48)
                   else ...[
                     FilledButton(
                       onPressed: () => context.read<AuthBloc>().add(
-                            AuthSignInRequested(
-                              _emailController.text.trim(),
-                              _passwordController.text,
-                            ),
-                          ),
+                        AuthSignInRequested(
+                          _emailController.text.trim(),
+                          _passwordController.text,
+                        ),
+                      ),
                       child: const Text('Sign In'),
                     ),
                     const SizedBox(height: 10),
                     OutlinedButton(
                       onPressed: () => context.read<AuthBloc>().add(
-                            AuthSignUpRequested(
-                              _emailController.text.trim(),
-                              _passwordController.text,
-                            ),
-                          ),
+                        AuthSignUpRequested(
+                          _emailController.text.trim(),
+                          _passwordController.text,
+                        ),
+                      ),
                       child: const Text('Create Account'),
                     ),
                   ],

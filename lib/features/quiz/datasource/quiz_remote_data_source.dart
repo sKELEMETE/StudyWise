@@ -1,39 +1,23 @@
 import 'dart:convert';
 
 import 'package:studywise/features/groq/datasource/groq_data_source.dart';
-import 'package:studywise/features/groq/datasource/study_material_raw_text_grab_data_source.dart';
 import 'package:studywise/features/quiz/model/quiz_models.dart';
 
 class QuizRemoteDataSource {
-  final GrabRawText rawTextDataSource;
   final GroqDataSource groqDataSource;
 
-  QuizRemoteDataSource({
-    required this.rawTextDataSource,
-    required this.groqDataSource,
-  });
+  QuizRemoteDataSource({required this.groqDataSource});
 
   Future<QuizSession> generateQuiz({
-    required String userId,
-    required String folderName,
+    required String rawText,
     required QuizMode mode,
   }) async {
-    final rawTexts = await rawTextDataSource.getRawTexts(
-      userId: userId,
-      folderName: folderName,
-    );
-
-    final combinedText = rawTexts
-        .map((text) => text.trim())
-        .where((text) => text.isNotEmpty)
-        .join('\n\n');
-
-    if (combinedText.isEmpty) {
+    if (rawText.trim().isEmpty) {
       throw Exception('No readable text was found in this folder.');
     }
 
     final response = await groqDataSource.generateQuizJson(
-      rawText: combinedText,
+      rawText: rawText,
       mode: mode == QuizMode.multipleChoice ? 'multiple_choice' : 'flashcard',
       count: mode == QuizMode.multipleChoice ? 8 : 10,
     );

@@ -54,10 +54,8 @@ class SourceBloc extends Bloc<SourceEvent, SourceState> {
   final GetTopicFilesUseCase getTopicFilesUseCase;
   final ProcessAndUploadMaterialUseCase processUseCase;
 
-  SourceBloc({
-    required this.getTopicFilesUseCase,
-    required this.processUseCase,
-  }) : super(SourceInitial()) {
+  SourceBloc({required this.getTopicFilesUseCase, required this.processUseCase})
+    : super(SourceInitial()) {
     on<LoadSourceRequested>(_onLoadSource);
     on<UploadFileRequested>(_onUploadFile);
   }
@@ -85,6 +83,7 @@ class SourceBloc extends Bloc<SourceEvent, SourceState> {
     emit(SourceLoading());
     try {
       await processUseCase.execute(
+        userId: event.userId,
         folderName: event.folderName,
         fileName: event.fileName,
         fileType: event.fileType,
@@ -92,18 +91,12 @@ class SourceBloc extends Bloc<SourceEvent, SourceState> {
       );
       emit(SourceActionSuccess('File uploaded successfully'));
       add(
-        LoadSourceRequested(
-          userId: event.userId,
-          folderName: event.folderName,
-        ),
+        LoadSourceRequested(userId: event.userId, folderName: event.folderName),
       );
     } catch (e) {
       emit(SourceError(friendlyErrorMessage(e)));
       add(
-        LoadSourceRequested(
-          userId: event.userId,
-          folderName: event.folderName,
-        ),
+        LoadSourceRequested(userId: event.userId, folderName: event.folderName),
       );
     }
   }

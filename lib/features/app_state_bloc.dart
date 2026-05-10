@@ -5,11 +5,7 @@ class AppState {
   final String? folderName;
   final bool isDarkMode;
 
-  const AppState({
-    this.userId,
-    this.folderName,
-    this.isDarkMode = false,
-  });
+  const AppState({this.userId, this.folderName, this.isDarkMode = false});
 
   bool get hasSelectedFolder => userId != null && folderName != null;
 
@@ -31,10 +27,7 @@ class AppState {
 class AppStateCubit extends Cubit<AppState> {
   AppStateCubit() : super(const AppState());
 
-  void selectFolder({
-    required String userId,
-    required String folderName,
-  }) {
+  void selectFolder({required String userId, required String folderName}) {
     emit(state.copyWith(userId: userId, folderName: folderName));
   }
 

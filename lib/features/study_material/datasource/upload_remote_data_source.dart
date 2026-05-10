@@ -9,19 +9,15 @@ import '../../../service/env_service.dart';
 class UploadRemoteDataSource {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  Future<void> saveMaterial({
+  Future<String> uploadMaterialFile({
     required String folderName,
     required String fileName,
     required String fileType,
-    required String extractedText,
     required Uint8List fileBytes,
   }) async {
     final session = _supabase.auth.currentSession;
     if (session == null) throw Exception('User authentication required');
     if (fileBytes.isEmpty) throw Exception('Missing file');
-    if (extractedText.trim().isEmpty) {
-      throw Exception('No readable text was found in this file.');
-    }
 
     final String edgeFunctionUrl =
         '${EnvService.supabaseUrl}/functions/v1/upload_material';
@@ -32,7 +28,6 @@ class UploadRemoteDataSource {
     request.fields['folderName'] = folderName;
     request.fields['fileName'] = fileName;
     request.fields['fileType'] = fileType;
-    request.fields['extractedText'] = extractedText;
 
     request.files.add(
       http.MultipartFile.fromBytes('file', fileBytes, filename: fileName),
@@ -44,6 +39,11 @@ class UploadRemoteDataSource {
     if (response.statusCode != 200) {
       throw Exception(_errorMessageFromResponse(response.body));
     }
+
+    final data = jsonDecode(response.body);
+    final filePath = data['filePath']?.toString() ?? '';
+    if (filePath.isEmpty) throw Exception('Upload failed. Please try again.');
+    return filePath;
   }
 
   String _errorMessageFromResponse(String body) {

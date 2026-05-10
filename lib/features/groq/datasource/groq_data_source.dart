@@ -5,6 +5,7 @@ import 'package:studywise/service/env_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 enum OutputFormat { paragraph, bullet }
+
 enum Difficulty { easy, medium }
 
 class GroqDataSource {
@@ -227,10 +228,7 @@ $text
 ''';
   }
 
-  Future<String> _callGroq(
-    String prompt, {
-    double temperature = 0.2,
-  }) async {
+  Future<String> _callGroq(String prompt, {double temperature = 0.2}) async {
     final session = _supabase.auth.currentSession;
     if (session == null) throw Exception('User authentication required');
 
@@ -239,18 +237,11 @@ $text
       'Content-Type': 'application/json',
     };
 
-    final body = jsonEncode({
-      'prompt': prompt,
-      'temperature': temperature,
-    });
+    final body = jsonEncode({'prompt': prompt, 'temperature': temperature});
 
     final uri = Uri.parse('${EnvService.supabaseUrl}/functions/v1/groq_ai');
     final response = await http
-        .post(
-          uri,
-          headers: headers,
-          body: body,
-        )
+        .post(uri, headers: headers, body: body)
         .timeout(const Duration(seconds: 45));
 
     if (response.statusCode == 200) {

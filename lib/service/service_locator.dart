@@ -12,7 +12,7 @@ import '../features/study_material/datasource/storage_remote_data_source.dart';
 import '../features/study_material/datasource/upload_remote_data_source.dart';
 import '../features/study_material/datasource/image_local_text_extraction_data_source.dart';
 import '../features/study_material/datasource/pdf_local_extraction_data_source.dart';
-import '../features/study_material/datasource/text_local_extraction_data_source.dart';
+import '../features/study_material/datasource/study_content_remote_data_source.dart';
 import '../features/study_material/repo/study_material_repository.dart';
 import '../features/study_material/repo/extraction_repository.dart';
 import '../features/study_material/usecase/get_topics_usecase.dart';
@@ -25,7 +25,6 @@ import '../features/groq/usecase/groq_usecase.dart';
 import '../features/groq/bloc/ai_bloc.dart';
 import '../features/groq/datasource/groq_data_source.dart';
 import '../features/groq/repo/groq_and_raw_text_repo.dart';
-import '../features/groq/datasource/study_material_raw_text_grab_data_source.dart';
 
 import '../features/quiz/bloc/quiz_bloc.dart';
 import '../features/quiz/datasource/quiz_remote_data_source.dart';
@@ -42,9 +41,7 @@ void initDependencies() {
   sl.registerLazySingleton<AuthRepository>(() => AuthRepositoryImpl(sl()));
   sl.registerLazySingleton(() => SignInUseCase(sl()));
   sl.registerLazySingleton(() => SignUpUseCase(sl()));
-  sl.registerFactory(
-    () => AuthBloc(signInUseCase: sl(), signUpUseCase: sl()),
-  );
+  sl.registerFactory(() => AuthBloc(signInUseCase: sl(), signUpUseCase: sl()));
 
   // === STUDY MATERIALS ===
   // DataSources
@@ -52,11 +49,11 @@ void initDependencies() {
   sl.registerLazySingleton(() => UploadRemoteDataSource());
   sl.registerLazySingleton(() => ImageLocalDataSource());
   sl.registerLazySingleton(() => PdfLocalDataSource());
-  sl.registerLazySingleton(() => TextLocalDataSource());
+  sl.registerLazySingleton(() => StudyContentRemoteDataSource());
 
   // Repositories
-  sl.registerLazySingleton(() => StudyMaterialRepository(sl(), sl()));
-  sl.registerLazySingleton(() => ExtractionRepository(sl(), sl(), sl()));
+  sl.registerLazySingleton(() => StudyMaterialRepository(sl(), sl(), sl()));
+  sl.registerLazySingleton(() => ExtractionRepository(sl(), sl()));
 
   // UseCases
   sl.registerLazySingleton(() => GetTopicsUseCase(sl()));
@@ -74,43 +71,39 @@ void initDependencies() {
   sl.registerFactory(() => AppStateCubit());
 
   // === GROQ ===
-  // DataSource
-  sl.registerLazySingleton<GrabRawText>(
-    () => GrabRawText(),
-  );
-
-  sl.registerLazySingleton<GroqDataSource>(
-    () => GroqDataSource(),
-  );
+  sl.registerLazySingleton<GroqDataSource>(() => GroqDataSource());
 
   // Repo
   sl.registerLazySingleton<AiTextRepo>(
-    () => AiTextRepo(
-      remoteDataSource: sl(),
-      groqDataSource: sl(),
-    ),
+    () => AiTextRepo(contentDataSource: sl(), groqDataSource: sl()),
   );
 
   // UseCases
-  sl.registerLazySingleton(
-    () => SummarizeStudyMaterialsUseCase(sl()),
-  );
+  sl.registerLazySingleton(() => GetSummariesUseCase(sl()));
+  sl.registerLazySingleton(() => SummarizeStudyMaterialsUseCase(sl()));
 
   // Bloc
   sl.registerFactory(
-    () => AiBloc(
-      summarizeUseCase: sl(),
-    ),
+    () => AiBloc(getSummariesUseCase: sl(), summarizeUseCase: sl()),
   );
 
   // === QUIZ ===
-  sl.registerLazySingleton(
-    () => QuizRemoteDataSource(
-      rawTextDataSource: sl(),
-      groqDataSource: sl(),
+  sl.registerLazySingleton(() => QuizRemoteDataSource(groqDataSource: sl()));
+  sl.registerLazySingleton(() => QuizRepository(sl(), sl()));
+  sl.registerLazySingleton(() => GetQuizLibraryUseCase(sl()));
+  sl.registerLazySingleton(() => GenerateQuizUseCase(sl()));
+  sl.registerLazySingleton(() => GenerateFlashcardsUseCase(sl()));
+  sl.registerLazySingleton(() => GetSavedQuizSessionUseCase(sl()));
+  sl.registerLazySingleton(() => SaveQuizResultUseCase(sl()));
+  sl.registerLazySingleton(() => GetQuizHistoryUseCase(sl()));
+  sl.registerFactory(
+    () => QuizBloc(
+      getQuizLibraryUseCase: sl(),
+      generateQuizUseCase: sl(),
+      generateFlashcardsUseCase: sl(),
+      getSavedQuizSessionUseCase: sl(),
+      saveQuizResultUseCase: sl(),
+      getQuizHistoryUseCase: sl(),
     ),
   );
-  sl.registerLazySingleton(() => QuizRepository(sl()));
-  sl.registerLazySingleton(() => GenerateQuizUseCase(sl()));
-  sl.registerFactory(() => QuizBloc(generateQuizUseCase: sl()));
 }

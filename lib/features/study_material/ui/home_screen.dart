@@ -5,6 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:studywise/features/app_state_bloc.dart';
 import 'package:studywise/features/study_material/ui/widgets/study_material_file_picker.dart';
+import 'package:studywise/shared/widgets/empty_state_widget.dart';
+import 'package:studywise/shared/widgets/skeleton_loaders.dart';
 import 'package:studywise/shared/widgets/theme_mode_button.dart';
 import '../bloc/topic_bloc.dart';
 
@@ -26,9 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
 
     if (user != null) {
-      context.read<TopicBloc>().add(
-            LoadTopicsRequested(user!.id),
-          );
+      context.read<TopicBloc>().add(LoadTopicsRequested(user!.id));
     }
   }
 
@@ -74,9 +74,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           ScaffoldMessenger.of(rootContext).showSnackBar(
                             SnackBar(
                               content: Text(
-                                error
-                                    .toString()
-                                    .replaceFirst('Exception: ', ''),
+                                error.toString().replaceFirst(
+                                  'Exception: ',
+                                  '',
+                                ),
                               ),
                             ),
                           );
@@ -137,9 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     if (user == null) {
-      return const Scaffold(
-        body: Center(child: Text('No user')),
-      );
+      return const Scaffold(body: Center(child: Text('No user')));
     }
 
     return Scaffold(
@@ -156,21 +155,21 @@ class _HomeScreenState extends State<HomeScreen> {
               }
             },
             icon: const Icon(Icons.logout),
-          )
+          ),
         ],
       ),
       body: BlocConsumer<TopicBloc, TopicState>(
         listener: (context, state) {
           if (state is TopicActionSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message)),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(state.message)));
           }
 
           if (state is TopicError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message)),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(state.message)));
           }
         },
         builder: (context, state) {
@@ -184,18 +183,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Text(
                       'Welcome back',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       user!.email ?? '',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant,
-                          ),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
@@ -212,29 +208,29 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Builder(
                   builder: (context) {
                     if (state is TopicLoading) {
-                      return const Center(
-                        child: CircularProgressIndicator(),
+                      return ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        itemBuilder: (context, index) =>
+                            const ListTileSkeleton(),
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 8),
+                        itemCount: 4,
                       );
                     }
 
                     if (state is TopicLoaded) {
                       if (state.topics.isEmpty) {
-                        return Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Text(
-                              'Create a topic to start studying.',
-                              textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.bodyLarge,
-                            ),
-                          ),
+                        return const EmptyStateWidget(
+                          icon: Icons.folder_open,
+                          message: 'Create a topic to start studying.',
                         );
                       }
 
                       return ListView.separated(
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                         itemCount: state.topics.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 8),
                         itemBuilder: (context, index) {
                           final folder = state.topics[index];
 
@@ -245,11 +241,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               trailing: const Icon(Icons.chevron_right),
                               onTap: () {
                                 context.read<AppStateCubit>().selectFolder(
-                                      userId: user!.id,
-                                      folderName: folder.name,
-                                    );
+                                  userId: user!.id,
+                                  folderName: folder.name,
+                                );
 
-                                context.go('/source');
+                                context.push('/source');
                               },
                             ),
                           );
@@ -257,9 +253,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     }
 
-                    return const Center(
-                      child: Text('Load topics'),
-                    );
+                    return const Center(child: Text('Load topics'));
                   },
                 ),
               ),

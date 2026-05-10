@@ -40,10 +40,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final SignInUseCase signInUseCase;
   final SignUpUseCase signUpUseCase;
 
-  AuthBloc({
-    required this.signInUseCase,
-    required this.signUpUseCase,
-  }) : super(AuthInitial()) {
+  AuthBloc({required this.signInUseCase, required this.signUpUseCase})
+    : super(AuthInitial()) {
     on<AuthSignUpRequested>(_onSignUpRequested);
     on<AuthSignInRequested>(_onSignInRequested);
   }

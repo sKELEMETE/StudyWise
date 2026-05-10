@@ -53,10 +53,8 @@ class TopicBloc extends Bloc<TopicEvent, TopicState> {
   final GetTopicsUseCase getTopicsUseCase;
   final ProcessAndUploadMaterialUseCase processUseCase;
 
-  TopicBloc({
-    required this.getTopicsUseCase,
-    required this.processUseCase,
-  }) : super(TopicInitial()) {
+  TopicBloc({required this.getTopicsUseCase, required this.processUseCase})
+    : super(TopicInitial()) {
     on<LoadTopicsRequested>(_onLoadTopics);
     on<CreateTopicRequested>(_onCreateTopic);
   }
@@ -81,6 +79,7 @@ class TopicBloc extends Bloc<TopicEvent, TopicState> {
     emit(TopicLoading());
     try {
       await processUseCase.execute(
+        userId: event.userId,
         folderName: event.folderName,
         fileName: event.fileName,
         fileType: event.fileType,
