@@ -1,4 +1,5 @@
 import 'package:get_it/get_it.dart';
+import 'package:logger/logger.dart';
 import 'package:studywise/features/app_state_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -34,6 +35,9 @@ import '../features/quiz/usecase/generate_quiz_usecase.dart';
 final sl = GetIt.instance;
 
 void initDependencies() {
+  // === CORE ===
+  sl.registerLazySingleton<Logger>(() => Logger());
+
   // === AUTHENTICATION ===
   sl.registerLazySingleton<AuthRemoteDataSource>(
     () => AuthRemoteDataSourceImpl(Supabase.instance.client),
@@ -44,23 +48,19 @@ void initDependencies() {
   sl.registerFactory(() => AuthBloc(signInUseCase: sl(), signUpUseCase: sl()));
 
   // === STUDY MATERIALS ===
-  // DataSources
   sl.registerLazySingleton(() => StorageRemoteDataSource());
   sl.registerLazySingleton(() => UploadRemoteDataSource());
   sl.registerLazySingleton(() => ImageLocalDataSource());
   sl.registerLazySingleton(() => PdfLocalDataSource());
   sl.registerLazySingleton(() => StudyContentRemoteDataSource());
 
-  // Repositories
   sl.registerLazySingleton(() => StudyMaterialRepository(sl(), sl(), sl()));
   sl.registerLazySingleton(() => ExtractionRepository(sl(), sl()));
 
-  // UseCases
   sl.registerLazySingleton(() => GetTopicsUseCase(sl()));
   sl.registerLazySingleton(() => GetTopicFilesUseCase(sl()));
   sl.registerLazySingleton(() => ProcessAndUploadMaterialUseCase(sl(), sl()));
 
-  // Blocs
   sl.registerFactory(
     () => TopicBloc(getTopicsUseCase: sl(), processUseCase: sl()),
   );
@@ -73,16 +73,13 @@ void initDependencies() {
   // === GROQ ===
   sl.registerLazySingleton<GroqDataSource>(() => GroqDataSource());
 
-  // Repo
   sl.registerLazySingleton<AiTextRepo>(
     () => AiTextRepo(contentDataSource: sl(), groqDataSource: sl()),
   );
 
-  // UseCases
   sl.registerLazySingleton(() => GetSummariesUseCase(sl()));
   sl.registerLazySingleton(() => SummarizeStudyMaterialsUseCase(sl()));
 
-  // Bloc
   sl.registerFactory(
     () => AiBloc(getSummariesUseCase: sl(), summarizeUseCase: sl()),
   );

@@ -7,6 +7,7 @@ const corsHeaders = {
 }
 
 const groqEndpoint = "https://api.groq.com/openai/v1/chat/completions"
+const MAX_PROMPT_LENGTH = 50000;
 
 function createSupabaseClient(req: Request) {
   const authHeader = req.headers.get("Authorization")
@@ -15,12 +16,8 @@ function createSupabaseClient(req: Request) {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_ANON_KEY")!,
     {
-      global: {
-        headers: authHeader ? { Authorization: authHeader } : {},
-      },
-      auth: {
-        persistSession: false,
-      },
+      global: { headers: authHeader ? { Authorization: authHeader } : {} },
+      auth: { persistSession: false },
     },
   )
 }
@@ -32,13 +29,10 @@ serve(async (req) => {
 
   try {
     if (req.method !== "POST") {
-      return new Response(
-        JSON.stringify({ error: "Method not allowed" }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 405,
-        },
-      )
+      return new Response(JSON.stringify({ error: "Method not allowed" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 405,
+      })
     }
 
     const groqApiKey = Deno.env.get("GROQ_API_KEY")
@@ -59,13 +53,16 @@ serve(async (req) => {
     try {
       body = await req.json()
     } catch (e) {
-      throw new Error("Invalid JSON payload")
+      throw new Error("Validation Error: Invalid JSON payload")
     }
     
     const prompt = typeof body.prompt === "string" ? body.prompt.trim() : ""
     const temperature = typeof body.temperature === "number" ? body.temperature : 0.2
 
-    if (!prompt) throw new Error("Missing prompt")
+    if (!prompt) throw new Error("Validation Error: Missing prompt")
+    if (prompt.length > MAX_PROMPT_LENGTH) {
+      throw new Error(`Validation Error: Prompt exceeds maximum length of ${MAX_PROMPT_LENGTH} characters.`);
+    }
 
     const groqResponse = await fetch(groqEndpoint, {
       method: "POST",
@@ -90,13 +87,7 @@ serve(async (req) => {
     })
 
     if (!groqResponse.ok) {
-      return new Response(
-        JSON.stringify({ error: "AI service failed" }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 502,
-        },
-      )
+      throw new Error("AI service failed to process request")
     }
 
     const data = await groqResponse.json()
@@ -105,22 +96,19 @@ serve(async (req) => {
 
     if (!output) throw new Error("AI returned an empty response")
 
-    return new Response(
-      JSON.stringify({ output }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      },
-    )
+    return new Response(JSON.stringify({ output }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
+    })
   } catch (err) {
-    const message = err instanceof Error ? err.message : "AI request failed"
     console.error("AI Service Error:", err)
+    const isValidation = err instanceof Error && err.message.includes("Validation");
 
     return new Response(
-      JSON.stringify({ error: message }),
+      JSON.stringify({ error: isValidation ? err.message : "Internal Server Error" }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 400,
+        status: isValidation ? 400 : 500,
       },
     )
   }

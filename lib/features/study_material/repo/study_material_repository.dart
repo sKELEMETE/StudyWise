@@ -1,7 +1,7 @@
 import 'dart:typed_data';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:studywise/features/study_material/datasource/study_content_remote_data_source.dart';
 import 'package:studywise/features/study_material/model/study_content_models.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../datasource/storage_remote_data_source.dart';
 import '../datasource/upload_remote_data_source.dart';
 

@@ -8,8 +8,7 @@ import 'service/service_locator.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final logger = Logger();
-
+  
   try {
     await EnvService.init();
     await SupabaseConfig.init();
@@ -18,7 +17,8 @@ Future<void> main() async {
     runApp(const MyApp());
   } catch (e, stack) {
     if (kDebugMode) {
-      logger.e('Startup error', error: e, stackTrace: stack);
+      final fallbackLogger = sl.isRegistered<Logger>() ? sl<Logger>() : Logger();
+      fallbackLogger.e('Startup error', error: e, stackTrace: stack);
     }
     runApp(StartupErrorApp(onRetry: () => main()));
   }
